@@ -1,0 +1,281 @@
+export class RuleValidator {
+  static isWildOkey(tile, okeyInfo) {
+    if (!tile || !okeyInfo) return false;
+    return !tile.isFakeJoker && tile.color === okeyInfo.color && tile.value === okeyInfo.value;
+  }
+
+  static getTileScore(tile) {
+    if (!tile) return 0;
+    return tile.value || 0;
+  }
+
+  static isValidRun(tiles, okeyInfo) {
+    if (!tiles || tiles.length < 3 || tiles.length > 14) return false;
+
+    const nonWild = tiles.filter(t => !this.isWildOkey(t, okeyInfo));
+    if (nonWild.length === 0) return true;
+
+    const baseColor = nonWild[0].color;
+    for (const t of nonWild) {
+      if (t.color !== baseColor) return false;
+    }
+
+    // Standard run check without wrap
+    for (let startVal = 1; startVal <= 14 - tiles.length; startVal++) {
+      let match = true;
+      for (let i = 0; i < tiles.length; i++) {
+        const t = tiles[i];
+        if (!this.isWildOkey(t, okeyInfo) && t.value !== startVal + i) {
+          match = false;
+          break;
+        }
+      }
+      if (match) return true;
+    }
+
+    // Wrap check: Last tile is 1, preceding tiles end at 13
+    const lastTile = tiles[tiles.length - 1];
+    const isLastOne = this.isWildOkey(lastTile, okeyInfo) || lastTile.value === 1;
+
+    if (isLastOne) {
+      const prefixLength = tiles.length - 1;
+      const startVal = 13 - prefixLength + 1;
+      if (startVal >= 1) {
+        let match = true;
+        for (let i = 0; i < prefixLength; i++) {
+          const t = tiles[i];
+          if (!this.isWildOkey(t, okeyInfo) && t.value !== startVal + i) {
+            match = false;
+            break;
+          }
+        }
+        if (match) return true;
+      }
+    }
+
+    return false;
+  }
+
+  static isValidGroup(tiles, okeyInfo) {
+    if (!tiles || tiles.length < 3 || tiles.length > 4) return false;
+
+    const nonWild = tiles.filter(t => !this.isWildOkey(t, okeyInfo));
+    if (nonWild.length === 0) return true;
+
+    const baseValue = nonWild[0].value;
+    const colorsUsed = new Set();
+
+    for (const t of nonWild) {
+      if (t.value !== baseValue) return false;
+      if (colorsUsed.has(t.color)) return false;
+      colorsUsed.add(t.color);
+    }
+
+    return true;
+  }
+
+  static isValidPer(tiles, okeyInfo) {
+    return this.isValidRun(tiles, okeyInfo) || this.isValidGroup(tiles, okeyInfo);
+  }
+
+  static isPair(tileA, tileB, okeyInfo) {
+    if (!tileA || !tileB) return false;
+    if (this.isWildOkey(tileA, okeyInfo) || this.isWildOkey(tileB, okeyInfo)) return true;
+    return tileA.color === tileB.color && tileA.value === tileB.value;
+  }
+
+  static getPerPoints(tiles, okeyInfo) {
+    if (!this.isValidPer(tiles, okeyInfo)) return 0;
+
+    let total = 0;
+    if (this.isValidGroup(tiles, okeyInfo)) {
+      const nonWild = tiles.find(t => !this.isWildOkey(t, okeyInfo));
+      const val = nonWild ? nonWild.value : (okeyInfo ? okeyInfo.value : 10);
+      total = val * tiles.length;
+    } else {
+      const nonWildIndex = tiles.findIndex(t => !this.isWildOkey(t, okeyInfo));
+      if (nonWildIndex === -1) {
+        total = tiles.length * 10;
+      } else {
+        const baseVal = tiles[nonWildIndex].value;
+        for (let i = 0; i < tiles.length; i++) {
+          if (tiles[i].value === 1 && i === tiles.length - 1 && baseVal > 1) {
+            total += 1;
+          } else {
+            let deduced = baseVal - nonWildIndex + i;
+            if (deduced === 14) deduced = 1;
+            total += deduced;
+          }
+        }
+      }
+    }
+    return total;
+  }
+
+  static validate101Opening(pers, okeyInfo, minPoints = 101) {
+    if (!pers || pers.length === 0) return { valid: false, reason: 'Hiç per seçilmedi.' };
+
+    let totalPoints = 0;
+    for (const per of pers) {
+      if (!this.isValidPer(per, okeyInfo)) {
+        return { valid: false, reason: 'Geçersiz per var.' };
+      }
+      totalPoints += this.getPerPoints(per, okeyInfo);
+    }
+
+    if (totalPoints < minPoints) {
+      return {
+        valid: false,
+        points: totalPoints,
+        reason: `Toplam puanınız (${totalPoints}) barajı (${minPoints}) geçmiyor.`
+      };
+    }
+
+    return { valid: true, points: totalPoints };
+  }
+
+  static validate101Pairs(pairs, okeyInfo) {
+    if (!pairs || pairs.length < 5) {
+      return { valid: false, reason: 'Çift açmak için en az 5 çift gereklidir.' };
+    }
+    for (const pair of pairs) {
+      if (pair.length !== 2 || !this.isPair(pair[0], pair[1], okeyInfo)) {
+        return { valid: false, reason: 'Geçersiz çift bulundu.' };
+      }
+    }
+    return { valid: true };
+  }
+
+  static checkClassicWin(hand, okeyInfo) {
+    if (hand.length !== 14) return { win: false };
+
+    if (this.canFormPairs(hand, okeyInfo, 7)) {
+      return { win: true, type: 'pairs' };
+    }
+
+    if (this.canPartitionIntoPers(hand, okeyInfo)) {
+      return { win: true, type: 'runs' };
+    }
+
+    return { win: false };
+  }
+
+  static canFormPairs(hand, okeyInfo, targetPairs = 7) {
+    const wildcards = hand.filter(t => this.isWildOkey(t, okeyInfo));
+    const normals = hand.filter(t => !this.isWildOkey(t, okeyInfo));
+
+    const counts = {};
+    for (const t of normals) {
+      const key = `${t.color}-${t.value}`;
+      counts[key] = (counts[key] || 0) + 1;
+    }
+
+    let pairs = 0;
+    let singles = 0;
+    for (const key in counts) {
+      pairs += Math.floor(counts[key] / 2);
+      singles += counts[key] % 2;
+    }
+
+    let wildCount = wildcards.length;
+    while (wildCount > 0 && singles > 0) {
+      pairs++;
+      singles--;
+      wildCount--;
+    }
+    pairs += Math.floor(wildCount / 2);
+
+    return pairs >= targetPairs;
+  }
+
+  static canPartitionIntoPers(hand, okeyInfo) {
+    const allPers = [];
+    const n = hand.length;
+
+    const getCombinations = (arr, size, start = 0, current = []) => {
+      if (current.length === size) {
+        if (this.isValidGroup(current, okeyInfo) || this.isValidRunPermutation(current, okeyInfo)) {
+          allPers.push([...current]);
+        }
+        return;
+      }
+      for (let i = start; i < arr.length; i++) {
+        current.push(arr[i]);
+        getCombinations(arr, size, i + 1, current);
+        current.pop();
+      }
+    };
+
+    for (let size = 3; size <= Math.min(5, n); size++) {
+      getCombinations(hand, size);
+    }
+
+    const targetTileIds = new Set(hand.map(t => t.id));
+
+    const backtrack = (usedIds, startIdx) => {
+      if (usedIds.size === targetTileIds.size) return true;
+
+      for (let i = startIdx; i < allPers.length; i++) {
+        const per = allPers[i];
+        const perIds = per.map(t => t.id);
+
+        let overlap = false;
+        for (const id of perIds) {
+          if (usedIds.has(id)) {
+            overlap = true;
+            break;
+          }
+        }
+
+        if (!overlap) {
+          for (const id of perIds) usedIds.add(id);
+          if (backtrack(usedIds, i + 1)) return true;
+          for (const id of perIds) usedIds.delete(id);
+        }
+      }
+
+      return false;
+    };
+
+    return backtrack(new Set(), 0);
+  }
+
+  static isValidRunPermutation(tiles, okeyInfo) {
+    if (tiles.length < 3) return false;
+    const sorted = [...tiles].sort((a, b) => a.value - b.value);
+    if (this.isValidRun(sorted, okeyInfo)) return true;
+
+    const hasOne = sorted.find(t => t.value === 1 && !this.isWildOkey(t, okeyInfo));
+    if (hasOne) {
+      const rest = sorted.filter(t => t !== hasOne);
+      if (this.isValidRun([...rest, hasOne], okeyInfo)) return true;
+    }
+
+    return false;
+  }
+
+  static canProcessTile(tile, openPer, okeyInfo) {
+    if (!tile || !openPer || openPer.length === 0) return null;
+
+    if (this.isValidGroup(openPer, okeyInfo)) {
+      if (openPer.length >= 4) return null;
+      const test = [...openPer, tile];
+      if (this.isValidGroup(test, okeyInfo)) {
+        return { type: 'group', newPer: test };
+      }
+    }
+
+    if (this.isValidRun(openPer, okeyInfo)) {
+      const prepend = [tile, ...openPer];
+      if (this.isValidRun(prepend, okeyInfo)) {
+        return { type: 'run-prepend', newPer: prepend };
+      }
+      const append = [...openPer, tile];
+      if (this.isValidRun(append, okeyInfo)) {
+        return { type: 'run-append', newPer: append };
+      }
+    }
+
+    return null;
+  }
+}
