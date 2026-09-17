@@ -18,6 +18,7 @@ export class Okey101Game {
     this.turnIndex = 0;
     this.hasDrawn = false;
     this.justDrawnFromDiscard = false;
+    this.lastDrawnDiscardTile = null;
 
     this.deck = null;
     this.indicator = null;
@@ -60,10 +61,78 @@ export class Okey101Game {
     this.status = 'playing';
     this.winner = null;
     this.justDrawnFromDiscard = false;
+    this.lastDrawnDiscardTile = null;
     this.lastAction = {
       type: 'ROUND_STARTED',
       message: `${this.players[firstPlayerIndex]?.name || 'Oyuncu'} 22 taş ile 101 elini başlattı.`
     };
+  }
+
+  canDrawFromDiscard(playerId) {
+    const pIdx = this.getPlayerIndex(playerId);
+    if (pIdx !== this.turnIndex || this.hasDrawn) {
+      return { allowed: false, message: 'Sıra sizde değil veya zaten taş çektiniz.' };
+    }
+
+    const leftPlayerIdx = (pIdx + 3) % 4;
+    const leftPile = this.discardPiles[leftPlayerIdx];
+    if (!leftPile || leftPile.length === 0) {
+      return { allowed: false, message: 'Yandan alınacak taş yok.' };
+    }
+
+    const candidateTile = leftPile[leftPile.length - 1];
+    const player = this.players[pIdx];
+    const candidateHand = [...player.hand, candidateTile];
+    const hasOpened = !!this.openedHands[pIdx];
+
+    if (!hasOpened) {
+      const minRequired = this.options.folded ? this.highestOpenedPoints : 101;
+      const { totalPoints } = RuleValidator.findBest101Pers(candidateHand, this.okeyInfo);
+      const { pairCount } = RuleValidator.find101Pairs(candidateHand, this.okeyInfo);
+
+      if (totalPoints < minRequired && pairCount < 5) {
+        return {
+          allowed: false,
+          message:
+            `101 Okey Kuralı:\n\n` +
+            `Yandan taş alabilmek için bu taşla birlikte elinizi açabiliyor olmalısınız!\n\n` +
+            `• Bu taşla elinizdeki perlerin toplamı: ${totalPoints} puan (Baraj: ${minRequired})\n` +
+            `• Çift sayısı: ${pairCount} çift (Gereken: 5 çift)\n\n` +
+            `Eliniz el açmaya yetmediği için yandan taş alamazsınız. Lütfen ortadaki desteden taş çekiniz.`
+        };
+      }
+    } else {
+      // Player already opened earlier
+      const openerType = this.openedHands[pIdx].type;
+      if (openerType === 'runs') {
+        const canProcess = this.tablePers.some(
+          p => !p.isPair && RuleValidator.canProcessTile(candidateTile, p.tiles, this.okeyInfo)
+        );
+        const { pers } = RuleValidator.findBest101Pers(candidateHand, this.okeyInfo);
+        const formsNewPer = pers.some(per => per.some(t => t.id === candidateTile.id));
+        if (!canProcess && !formsNewPer) {
+          return {
+            allowed: false,
+            message:
+              `101 Okey Kuralı:\n\n` +
+              `Elini açmış bir oyuncu, yandan taşı sadece masadaki bir pere işleyebiliyorsa veya yeni bir per açabiliyorsa alabilir.`
+          };
+        }
+      } else if (openerType === 'pairs') {
+        const { pairs } = RuleValidator.find101Pairs(candidateHand, this.okeyInfo);
+        const formsNewPair = pairs.some(pair => pair.some(t => t.id === candidateTile.id));
+        if (!formsNewPair) {
+          return {
+            allowed: false,
+            message:
+              `101 Okey Kuralı:\n\n` +
+              `Çift açmış bir oyuncu, yandan taşı sadece elindeki bir taşla yeni bir çift oluşturabiliyorsa alabilir.`
+          };
+        }
+      }
+    }
+
+    return { allowed: true, tile: candidateTile };
   }
 
   drawTile(playerId, fromDiscard = false) {
@@ -77,16 +146,19 @@ export class Okey101Game {
 
     let drawnTile = null;
     if (fromDiscard) {
+      const check = this.canDrawFromDiscard(playerId);
+      if (!check.allowed) {
+        return { success: false, message: check.message };
+      }
       const leftPlayerIdx = (pIdx + 3) % 4;
       const leftPile = this.discardPiles[leftPlayerIdx];
-      if (!leftPile || leftPile.length === 0) {
-        return { success: false, message: 'Yandan alınacak taş yok.' };
-      }
       drawnTile = leftPile.pop();
       this.justDrawnFromDiscard = true;
+      this.lastDrawnDiscardTile = drawnTile;
     } else {
       drawnTile = this.deck.draw();
       this.justDrawnFromDiscard = false;
+      this.lastDrawnDiscardTile = null;
       if (!drawnTile) {
         this.endRoundNoTiles();
         return { success: true, message: 'Deste bitti!' };
@@ -101,6 +173,35 @@ export class Okey101Game {
     };
 
     return { success: true, drawnTile };
+  }
+
+  returnDiscardTile(playerId) {
+    const pIdx = this.getPlayerIndex(playerId);
+    if (pIdx !== this.turnIndex || !this.hasDrawn || !this.justDrawnFromDiscard || !this.lastDrawnDiscardTile) {
+      return { success: false, message: 'Geri bırakılacak taş yok.' };
+    }
+
+    const player = this.players[pIdx];
+    const tileIdx = player.hand.findIndex(t => t.id === this.lastDrawnDiscardTile.id);
+    if (tileIdx === -1) {
+      return { success: false, message: 'Yandan alınan taş elinizde bulunamadı.' };
+    }
+
+    const returnedTile = player.hand[tileIdx];
+    player.hand = player.hand.filter((_, i) => i !== tileIdx);
+
+    const leftPlayerIdx = (pIdx + 3) % 4;
+    this.discardPiles[leftPlayerIdx].push(returnedTile);
+    this.hasDrawn = false;
+    this.justDrawnFromDiscard = false;
+    this.lastDrawnDiscardTile = null;
+
+    this.lastAction = {
+      type: 'RETURN_TILE',
+      message: `${player.name} yandan aldığı taşı geri bıraktı.`
+    };
+
+    return { success: true };
   }
 
   openRunsHand(playerId, pers) {
@@ -304,6 +405,7 @@ export class Okey101Game {
     this.discardPiles[pIdx].push(discardedTile);
     this.hasDrawn = false;
     this.justDrawnFromDiscard = false;
+    this.lastDrawnDiscardTile = null;
 
     if (player.hand.length === 0) {
       this.endRoundWinner(pIdx, discardedTile);

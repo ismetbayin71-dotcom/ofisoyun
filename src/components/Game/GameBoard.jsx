@@ -98,10 +98,31 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
   // Draw tile action
   const handleDrawTile = (fromDiscard = false) => {
     if (!isMyTurn || hasDrawn) return;
+
+    if (fromDiscard && gameType === '101' && !isLeftDiscardLegal) {
+      alert(
+        '101 Okey Kuralı:\n\n' +
+        'Yandan taş alabilmek için bu taşla birlikte elinizi açabiliyor olmalısınız (En az 101 puan veya 5 çift)!\n\n' +
+        'Eliniz açmaya yetmediği için yandan taş alamazsınız. Lütfen ortadaki desteden çekiniz.'
+      );
+      return;
+    }
+
     sound.playDraw();
     network.emit('game:drawTile', { roomId: gameState.roomId, fromDiscard }, (res) => {
       if (!res.success) {
         alert(res.message || 'Taş çekilemedi.');
+      }
+    });
+  };
+
+  // Return discard tile in 101
+  const handleReturnDiscardTile = () => {
+    if (!isMyTurn || !hasDrawn || !gameState.justDrawnFromDiscard) return;
+    sound.playTileClick();
+    network.emit('game:returnDiscardTile', { roomId: gameState.roomId }, (res) => {
+      if (!res.success) {
+        alert(res.message || 'Taş geri bırakılamadı.');
       }
     });
   };
@@ -185,7 +206,27 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
     return discardPiles[seatIdx]?.topTile || null;
   };
 
-  const isLeftDiscardDrawable = isMyTurn && !hasDrawn && getDiscardForSeat(leftOpponent.seatIndex) !== null;
+  const leftDiscardTile = getDiscardForSeat(leftOpponent.seatIndex);
+  const isLeftDiscardLegal = useMemo(() => {
+    if (!isMyTurn || hasDrawn || !leftDiscardTile) return false;
+    if (gameType === 'classic') return true;
+
+    // 101 rules:
+    const candidateHand = [...(viewer?.hand || []), leftDiscardTile];
+    if (!viewer?.hasOpened) {
+      const { totalPoints } = RuleValidator.findBest101Pers(candidateHand, okeyInfo);
+      const { pairCount } = RuleValidator.find101Pairs(candidateHand, okeyInfo);
+      return totalPoints >= minRequiredPoints || pairCount >= 5;
+    } else {
+      const canProcess = tablePers.some(
+        p => !p.isPair && RuleValidator.canProcessTile(leftDiscardTile, p.tiles, okeyInfo)
+      );
+      const { pers } = RuleValidator.findBest101Pers(candidateHand, okeyInfo);
+      const formsNewPer = pers.some(per => per.some(t => t.id === leftDiscardTile.id));
+      return canProcess || formsNewPer;
+    }
+  }, [isMyTurn, hasDrawn, leftDiscardTile, gameType, viewer?.hand, viewer?.hasOpened, okeyInfo, minRequiredPoints, tablePers]);
+
   const messagesList = gameState.chatMessages || chatMessages || [];
 
   return (
@@ -246,18 +287,40 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
       {/* PROMINENT TURN STATUS BANNER */}
       <div className="turn-banner-container" style={{ marginTop: 6 }}>
         {isMyTurn ? (
-          <div className="turn-banner my-turn">
-            <span style={{ fontSize: '1.5rem' }}>🎯</span>
-            <div>
-              <strong>SIRA SİZDE!</strong>{' '}
-              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                {!hasDrawn
-                  ? 'Ortadaki desteden veya solunuzdaki oyuncudan taş çekiniz.'
-                  : (gameType === '101' && gameState.justDrawnFromDiscard && !viewer?.hasOpened)
-                    ? '⚠️ Yandan taş aldınız: Taş atabilmek için elinizi açmalı (101 barajı) veya masaya işlemelisiniz!'
-                    : 'Taşınızı çektiniz. İşe yaramayan bir taşı atın veya per açın/bitin.'}
-              </span>
+          <div className="turn-banner my-turn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: '1.5rem' }}>🎯</span>
+              <div>
+                <strong>SIRA SİZDE!</strong>{' '}
+                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                  {!hasDrawn
+                    ? 'Ortadaki desteden veya solunuzdaki oyuncudan taş çekiniz.'
+                    : (gameType === '101' && gameState.justDrawnFromDiscard && !viewer?.hasOpened)
+                      ? '⚠️ Yandan taş aldınız: Taş atmak için elinizi açmalısınız (101 barajı).'
+                      : 'Taşınızı çektiniz. İşe yaramayan bir taşı atın veya per açın/bitin.'}
+                </span>
+              </div>
             </div>
+
+            {gameType === '101' && hasDrawn && gameState.justDrawnFromDiscard && !viewer?.hasOpened && (
+              <button
+                className="btn-secondary"
+                style={{
+                  borderColor: '#f59e0b',
+                  color: '#f59e0b',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  background: 'rgba(0, 0, 0, 0.45)',
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  whiteSpace: 'nowrap'
+                }}
+                onClick={handleReturnDiscardTile}
+                title="Yandan aldığınız taşı geri bırakıp ortadan taş çekebilirsiniz"
+              >
+                ↩️ Taşı Yere Geri Bırak
+              </button>
+            )}
           </div>
         ) : (
           <div className="turn-banner other-turn">
@@ -336,18 +399,28 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
 
           {/* Left player discard pile */}
           <div
-            className={`discard-slot ${isLeftDiscardDrawable ? 'can-draw' : ''}`}
+            className={`discard-slot ${isLeftDiscardLegal ? 'can-draw' : ''}`}
             style={{ marginTop: 10 }}
-            onClick={() => isLeftDiscardDrawable && handleDrawTile(true)}
-            title={isLeftDiscardDrawable ? 'Yandan Taş Çek' : ''}
+            onClick={() => {
+              if (isMyTurn && !hasDrawn && leftDiscardTile) {
+                handleDrawTile(true);
+              }
+            }}
+            title={
+              isLeftDiscardLegal
+                ? 'Yandan Taş Çek'
+                : (isMyTurn && !hasDrawn && leftDiscardTile && gameType === '101')
+                  ? 'Eliniz bu taşla birlikte açmaya yetmediği için yandan alamazsınız'
+                  : ''
+            }
           >
-            {getDiscardForSeat(leftOpponent.seatIndex) ? (
-              <Tile tile={getDiscardForSeat(leftOpponent.seatIndex)} okeyInfo={okeyInfo} />
+            {leftDiscardTile ? (
+              <Tile tile={leftDiscardTile} okeyInfo={okeyInfo} />
             ) : (
               <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Boş</span>
             )}
           </div>
-          {isLeftDiscardDrawable && (
+          {isLeftDiscardLegal && (
             <span style={{ fontSize: '0.75rem', color: '#38ef7d', fontWeight: 800, marginTop: 4, animation: 'bannerPulse 1.2s infinite' }}>
               👆 YANDAN AL
             </span>
@@ -535,6 +608,8 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           hasDrawn={hasDrawn}
           gameType={gameType}
           hasOpened={!!viewer?.hasOpened}
+          justDrawnFromDiscard={gameState.justDrawnFromDiscard}
+          onReturnDiscardTile={handleReturnDiscardTile}
           minRequiredPoints={minRequiredPoints}
           totalHandPoints={handStats.totalPoints}
           bestPersPoints={handStats.bestPersPoints}

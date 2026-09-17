@@ -11,6 +11,8 @@ export const TileRack = ({
   hasDrawn,
   gameType,
   hasOpened = false,
+  justDrawnFromDiscard = false,
+  onReturnDiscardTile,
   minRequiredPoints = 101,
   totalHandPoints = 0,
   bestPersPoints = 0,
@@ -225,20 +227,19 @@ export const TileRack = ({
     }
   };
 
-  // Optimistic Discard
+  // Discard action
   const handleDiscardAction = (tileId) => {
     sound.playTileClick();
     onDiscard(tileId);
-    // Remove immediately from rack slots so user never sees discarded tile stuck in hand
-    setSlots(prev => prev.map(t => (t && t.id === tileId ? null : t)));
     setSelectedSlotIndex(null);
     setSelectedFor101Ids([]);
   };
 
-  // Fast-discard on double click
+  // Fast-discard on double click (Classic Okey only)
   const handleDoubleClick = (slotIdx) => {
     const tile = slots[slotIdx];
-    if (tile && isMyTurn && hasDrawn) {
+    if (!tile) return;
+    if (gameType === 'classic' && isMyTurn && hasDrawn) {
       handleDiscardAction(tile.id);
     }
   };
@@ -392,8 +393,10 @@ export const TileRack = ({
   const selected101Tiles = hand.filter(t => selectedFor101Ids.includes(t.id));
   const selected101Points = selected101Tiles.reduce((acc, t) => acc + (t.value || 0), 0);
 
-  // Selected tile for discard in Classic
-  const selectedTileToDiscard = selectedSlotIndex !== null ? slots[selectedSlotIndex] : null;
+  // Selected tile for discard
+  const selectedTileToDiscard = selectedSlotIndex !== null
+    ? slots[selectedSlotIndex]
+    : (selectedFor101Ids.length === 1 ? hand.find(t => t.id === selectedFor101Ids[0]) : null);
 
   return (
     <div className="user-game-rack-area">
@@ -469,6 +472,23 @@ export const TileRack = ({
 
         {/* Turn Action Buttons */}
         <div className="rack-actions-group">
+          {/* 101 Return Discard Tile Button */}
+          {gameType === '101' && isMyTurn && hasDrawn && justDrawnFromDiscard && !hasOpened && onReturnDiscardTile && (
+            <button
+              className="btn-secondary"
+              style={{
+                borderColor: '#f59e0b',
+                color: '#f59e0b',
+                fontWeight: 700,
+                background: 'rgba(245, 158, 11, 0.15)'
+              }}
+              onClick={onReturnDiscardTile}
+              title="Yandan aldığınız taşı geri bırakıp ortadan çekebilirsiniz"
+            >
+              ↩️ Taşı Yere Geri Bırak
+            </button>
+          )}
+
           {isMyTurn && hasDrawn && selectedTileToDiscard && (
             <>
               <button
@@ -501,9 +521,9 @@ export const TileRack = ({
             </span>
           )}
 
-          {isMyTurn && hasDrawn && !selectedTileToDiscard && gameType === 'classic' && (
+          {isMyTurn && hasDrawn && !selectedTileToDiscard && (
             <span style={{ color: '#e5b94c', fontWeight: 700, fontSize: '0.85rem' }}>
-              Atacağınız taşa tıklayın
+              Atacağınız taşa tıklayın veya masaya sürükleyin
             </span>
           )}
         </div>

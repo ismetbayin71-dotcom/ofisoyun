@@ -197,6 +197,16 @@ class P2PNetwork {
         break;
       }
 
+      case 'game:returnDiscardTile': {
+        if (!this.localRoom.game || !this.localRoom.game.returnDiscardTile) return;
+        const res = this.localRoom.game.returnDiscardTile(conn.peer);
+        if (!res.success && res.message) {
+          conn.send({ type: 'game:action_error', message: res.message });
+        }
+        this.broadcastState();
+        break;
+      }
+
       case 'chat:send': {
         this.localRoom.addChatMessage(data.senderName, data.text, false);
         this.broadcastState();
@@ -300,6 +310,10 @@ class P2PNetwork {
       if (callback) callback(res);
     } else if (event === 'game:processTile') {
       const res = this.localRoom.game?.processTile(this.myId, data.tileId, data.targetPerId);
+      this.broadcastState();
+      if (callback) callback(res);
+    } else if (event === 'game:returnDiscardTile') {
+      const res = this.localRoom.game?.returnDiscardTile?.(this.myId);
       this.broadcastState();
       if (callback) callback(res);
     } else if (event === 'game:nextRound') {
