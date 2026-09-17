@@ -5,12 +5,13 @@ import { Tile } from './Tile.jsx';
 import { TileRack } from './TileRack.jsx';
 import { ScoreModal } from '../UI/ScoreModal.jsx';
 import { ChatDrawer } from '../UI/ChatDrawer.jsx';
-import { Volume2, VolumeX, LogOut, Info, Bot, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, LogOut, Info, Bot, Sparkles, HelpCircle } from 'lucide-react';
 
-export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
+export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLeaveRoom }) => {
   const [muted, setMuted] = useState(false);
   const [selectedProcessTile, setSelectedProcessTile] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [showRulesModal, setShowRulesModal] = useState(false);
 
   if (!gameState) return null;
 
@@ -34,6 +35,7 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
   const viewerSeatIdx = players.findIndex(p => p && p.id === currentSocketId);
   const viewer = viewerSeatIdx !== -1 ? players[viewerSeatIdx] : null;
   const isMyTurn = turnIndex === viewerSeatIdx;
+  const activePlayerName = players[turnIndex]?.name || 'Oyuncu';
 
   // Alert on turn switch to viewer
   useEffect(() => {
@@ -51,14 +53,14 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
 
   // Relative player seats (South = Viewer, West = Right, North = Top, East = Left)
   const getRelativePlayer = (offset) => {
-    if (viewerSeatIdx === -1) return players[offset];
+    if (viewerSeatIdx === -1) return { player: players[offset], seatIndex: offset };
     const targetIdx = (viewerSeatIdx + offset) % 4;
     return { player: players[targetIdx], seatIndex: targetIdx };
   };
 
-  const leftOpponent = getRelativePlayer(3);  // Left player (seat - 1)
+  const leftOpponent = getRelativePlayer(3);  // Left player
   const topOpponent = getRelativePlayer(2);   // Opposite player
-  const rightOpponent = getRelativePlayer(1); // Right player (seat + 1)
+  const rightOpponent = getRelativePlayer(1); // Right player
 
   // Draw tile action
   const handleDrawTile = (fromDiscard = false) => {
@@ -87,7 +89,13 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
     if (!isMyTurn || !hasDrawn) return;
     network.emit('game:discardTile', { roomId: gameState.roomId, tileId, isFinishing: true }, (res) => {
       if (!res.success) {
-        alert(res.message || 'Bitme koşulları sağlanamadı!');
+        alert(
+          'Eliniz henüz bitmeye uygun değil!\n\n' +
+          'Klasik Okey kurallarına göre:\n' +
+          '• Elinizdeki 14 taşın TAMAMI geçerli serilerden (aynı renk ardışık en az 3 taş) veya gruplardan (farklı renk aynı sayı) oluşmalıdır.\n' +
+          '• VEYA 7 çift taştan oluşmalıdır.\n' +
+          '• Perlere uymayan tek bir taşınız bile varsa oyunu bitiremezsiniz.'
+        );
       }
     });
   };
@@ -96,7 +104,7 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
   const handleOpenRuns101 = (pers) => {
     network.emit('game:openRuns', { roomId: gameState.roomId, pers }, (res) => {
       if (!res.success) {
-        alert(res.message || 'Per açılamadı.');
+        alert(res.message || 'Per açılamadı! Toplam puanın 101 barajını geçtiğinden ve perlerin geçerli olduğundan emin olun.');
       }
     });
   };
@@ -110,7 +118,7 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
       targetPerId: targetPer.id
     }, (res) => {
       if (!res.success) {
-        alert(res.message || 'Bu taş buraya işlenemez.');
+        alert(res.message || 'Bu taş bu pere işlenemez.');
       } else {
         setSelectedProcessTile(null);
       }
@@ -131,19 +139,19 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
     });
   };
 
-  // Discard pile helper
   const getDiscardForSeat = (seatIdx) => {
     return discardPiles[seatIdx]?.topTile || null;
   };
 
   const isLeftDiscardDrawable = isMyTurn && !hasDrawn && getDiscardForSeat(leftOpponent.seatIndex) !== null;
+  const messagesList = gameState.chatMessages || chatMessages || [];
 
   return (
     <div className="game-screen">
       {/* Top Header Bar */}
       <header className="game-top-bar">
         <div className="top-bar-info">
-          <strong style={{ color: '#e5b94c', fontSize: '1.1rem' }}>
+          <strong style={{ color: '#e5b94c', fontSize: '1.15rem' }}>
             {gameType === '101' ? '101 Yüzbir Okey' : 'Klasik Düz Okey'}
             {options.folded ? ' (Katlamalı)' : ''}
           </strong>
@@ -155,21 +163,24 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
           {okeyInfo && (
             <div className="round-info-pill" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>Okey:</span>
-              <span className={`tile-number tile-${okeyInfo.color}`} style={{ fontSize: '1.2rem', fontWeight: 800 }}>
+              <span className={`tile-number tile-${okeyInfo.color}`} style={{ fontSize: '1.25rem', fontWeight: 800 }}>
                 {okeyInfo.value} {okeyInfo.color.toUpperCase()} ★
               </span>
             </div>
           )}
         </div>
 
-        {/* Live Status Ticker */}
-        {statusMessage && (
-          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '4px 16px', borderRadius: 999, fontSize: '0.85rem', color: '#38ef7d' }}>
-            {statusMessage}
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            className="btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+            onClick={() => setShowRulesModal(true)}
+            title="Kurallar & Nasıl Oynanır"
+          >
+            <HelpCircle size={15} style={{ marginRight: 4 }} />
+            Kurallar
+          </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             className="btn-secondary"
             style={{ padding: '6px 10px' }}
@@ -190,6 +201,30 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
         </div>
       </header>
 
+      {/* PROMINENT, UNMISSABLE TURN STATUS BANNER */}
+      <div className="turn-banner-container" style={{ marginTop: 8 }}>
+        {isMyTurn ? (
+          <div className="turn-banner my-turn">
+            <span style={{ fontSize: '1.5rem' }}>🎯</span>
+            <div>
+              <strong>SIRA SİZDE!</strong>{' '}
+              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                {!hasDrawn
+                  ? 'Ortadaki desteden veya solunuzdaki oyuncudan bir taş çekin.'
+                  : 'Taşınızı çektiniz. İşe yaramayan bir taşı atın veya per açın/bitiş yapın.'}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="turn-banner other-turn">
+            <span style={{ fontSize: '1.2rem', animation: 'spin 2s linear infinite' }}>⏳</span>
+            <span>
+              Sıra <strong>{activePlayerName}</strong> oyuncusunda... Hamlesi bekleniyor.
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Main Board Arena */}
       <div className="game-board-arena">
         {/* TOP OPPONENT */}
@@ -200,14 +235,18 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
                 {topOpponent.player.isBot ? <Bot size={18} /> : topOpponent.player.name.charAt(0)}
               </div>
               <div>
-                <strong style={{ fontSize: '0.9rem' }}>{topOpponent.player.name}</strong>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '0.95rem' }}>{topOpponent.player.name}</strong>
+                  {turnIndex === topOpponent.seatIndex && (
+                    <span className="turn-tag-badge">SIRA ONDA</span>
+                  )}
+                </div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                   {topOpponent.player.tileCount} Taş • Skor: {scores[topOpponent.seatIndex] || 0}
                 </div>
               </div>
             </div>
           )}
-          {/* Top player's discard slot */}
           <div className="discard-slot" style={{ marginTop: 8 }}>
             {getDiscardForSeat(topOpponent.seatIndex) && (
               <Tile tile={getDiscardForSeat(topOpponent.seatIndex)} okeyInfo={okeyInfo} mini />
@@ -223,7 +262,12 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
                 {leftOpponent.player.isBot ? <Bot size={18} /> : leftOpponent.player.name.charAt(0)}
               </div>
               <div>
-                <strong style={{ fontSize: '0.9rem' }}>{leftOpponent.player.name}</strong>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '0.95rem' }}>{leftOpponent.player.name}</strong>
+                  {turnIndex === leftOpponent.seatIndex && (
+                    <span className="turn-tag-badge">SIRA ONDA</span>
+                  )}
+                </div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                   {leftOpponent.player.tileCount} Taş • Skor: {scores[leftOpponent.seatIndex] || 0}
                 </div>
@@ -231,7 +275,7 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
             </div>
           )}
 
-          {/* Left player discard pile (This is what viewer can draw from!) */}
+          {/* Left player discard pile */}
           <div
             className={`discard-slot ${isLeftDiscardDrawable ? 'can-draw' : ''}`}
             style={{ marginTop: 12 }}
@@ -245,8 +289,8 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
             )}
           </div>
           {isLeftDiscardDrawable && (
-            <span style={{ fontSize: '0.75rem', color: '#38ef7d', fontWeight: 700, marginTop: 4 }}>
-              Yandan Al
+            <span style={{ fontSize: '0.75rem', color: '#38ef7d', fontWeight: 800, marginTop: 4, animation: 'bannerPulse 1.2s infinite' }}>
+              👆 YANDAN AL
             </span>
           )}
         </div>
@@ -271,14 +315,14 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
               </div>
               <span className="deck-count-badge">{remainingTiles} Taş</span>
               {isMyTurn && !hasDrawn && (
-                <span style={{ fontSize: '0.75rem', color: '#38ef7d', fontWeight: 700, marginTop: 2 }}>
-                  Çek
+                <span style={{ fontSize: '0.75rem', color: '#38ef7d', fontWeight: 800, marginTop: 4, animation: 'bannerPulse 1.2s infinite' }}>
+                  👆 ORTADAN ÇEK
                 </span>
               )}
             </div>
 
             {/* Gösterge Tile */}
-            <div style={{ display: 'flex', flexCollapse: 'column', alignItems: 'center', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexDirection: 'column' }}>
               <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: 4, textTransform: 'uppercase', fontWeight: 700 }}>
                 Gösterge
               </span>
@@ -319,7 +363,12 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
                 {rightOpponent.player.isBot ? <Bot size={18} /> : rightOpponent.player.name.charAt(0)}
               </div>
               <div>
-                <strong style={{ fontSize: '0.9rem' }}>{rightOpponent.player.name}</strong>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '0.95rem' }}>{rightOpponent.player.name}</strong>
+                  {turnIndex === rightOpponent.seatIndex && (
+                    <span className="turn-tag-badge">SIRA ONDA</span>
+                  )}
+                </div>
                 <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                   {rightOpponent.player.tileCount} Taş • Skor: {scores[rightOpponent.seatIndex] || 0}
                 </div>
@@ -327,7 +376,6 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
             </div>
           )}
 
-          {/* Right player discard pile */}
           <div className="discard-slot" style={{ marginTop: 12 }}>
             {getDiscardForSeat(rightOpponent.seatIndex) && (
               <Tile tile={getDiscardForSeat(rightOpponent.seatIndex)} okeyInfo={okeyInfo} />
@@ -366,10 +414,42 @@ export const GameBoard = ({ gameState, currentSocketId, onLeaveRoom }) => {
 
       {/* Chat Drawer */}
       <ChatDrawer
-        messages={[]}
+        messages={messagesList}
         onSendMessage={handleSendMessage}
         playerName={viewer?.name || 'Oyuncu'}
       />
+
+      {/* Rules & Help Modal */}
+      {showRulesModal && (
+        <div className="modal-overlay" onClick={() => setShowRulesModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'left', maxWidth: 600 }}>
+            <h2 style={{ textAlign: 'center', marginBottom: 16 }}>Okey Kuralları ve Bitiş Şartları</h2>
+
+            <div style={{ maxHeight: 380, overflowY: 'auto', fontSize: '0.9rem', lineHeight: 1.6, color: '#e2e8f0', paddingRight: 8 }}>
+              <h3 style={{ color: '#e5b94c', marginBottom: 4 }}>1. Klasik Düz Okey Bitiş Şartları</h3>
+              <p>• Elinizdeki 14 taşın <strong>TAMAMI</strong> geçerli serilerden veya gruplardan oluşmalıdır. Tek bir boşta kalan taş bile varken bitemezsiniz.</p>
+              <p>• <strong>Seri (Sıralı):</strong> Aynı renkte en az 3 ardışık sayı (Örn: Kırmızı 4-5-6 veya 11-12-13-1).</p>
+              <p>• <strong>Grup (Eşli):</strong> Farklı renklerde aynı sayılardan oluşan en az 3'lü grup (Örn: Kırmızı 7, Siyah 7, Mavi 7).</p>
+              <p>• <strong>Çifte Bitiş:</strong> Tüm elinizi 7 çiftten (aynı renk ve sayıdan 2'şer taş) oluşturup 15. taşı atarak biterseniz rakiplere ceza katlanır.</p>
+              <p>• <strong>Okey Atarak Bitiş:</strong> 14 taşınız perliyken, elinizde kalan Okey taşını yere bitiş taşı olarak atarsanız skor katlanır.</p>
+
+              <h3 style={{ color: '#e5b94c', marginTop: 16, marginBottom: 4 }}>2. 101 Yüzbir Okey Kuralları</h3>
+              <p>• <strong>El Açma:</strong> Elinizdeki serilerin/grupların sayı toplamı <strong>en az 101 puan</strong> olmalıdır (veya en az 5 çift açılmalıdır).</p>
+              <p>• <strong>Taş İşleme:</strong> Sadece elini daha önce açmış olan oyuncular masadaki perlere taş işleyebilir.</p>
+              <p>• <strong>Katlamalı Mod:</strong> Bir oyuncu el açtığında, sonraki oyuncuların açabilmesi için onun puanından daha yüksek bir puanla açması gerekir.</p>
+
+              <h3 style={{ color: '#e5b94c', marginTop: 16, marginBottom: 4 }}>3. Istaka Kullanımı</h3>
+              <p>• Taşları farenizle (veya parmağınızla) <strong>sürükleyip bırakarak</strong> istediğiniz yuvaya taşıyabilir veya yer değiştirebilirsiniz.</p>
+              <p>• <strong>Seri Diz</strong> butonu perlerinizi otomatik oluşturup aralarına boşluk bırakır.</p>
+              <p>• <strong>Çift Diz</strong> butonu elinizdeki çiftleri yan yana dizer.</p>
+            </div>
+
+            <button className="btn-primary" style={{ width: '100%', marginTop: 20 }} onClick={() => setShowRulesModal(false)}>
+              Anladım
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

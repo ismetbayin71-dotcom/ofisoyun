@@ -278,4 +278,172 @@ export class RuleValidator {
 
     return null;
   }
+
+  /**
+   * Smartly organizes hand into detected runs/groups with gaps
+   * Returns an array of tiles organized into logical sequences
+   */
+  static autoArrangeRuns(hand, okeyInfo) {
+    if (!hand || hand.length === 0) return [];
+
+    const wildcards = hand.filter(t => this.isWildOkey(t, okeyInfo));
+    const normals = hand.filter(t => !this.isWildOkey(t, okeyInfo));
+
+    // Group by color and sort by value
+    const byColor = { red: [], blue: [], black: [], yellow: [] };
+    for (const t of normals) {
+      if (byColor[t.color]) byColor[t.color].push(t);
+    }
+    for (const c in byColor) {
+      byColor[c].sort((a, b) => a.value - b.value);
+    }
+
+    const detectedPers = [];
+    const usedIds = new Set();
+
+    // 1. Find consecutive runs of 3+
+    for (const color of ['red', 'blue', 'black', 'yellow']) {
+      const tiles = byColor[color];
+      let currentRun = [];
+
+      for (let i = 0; i < tiles.length; i++) {
+        const t = tiles[i];
+        if (usedIds.has(t.id)) continue;
+
+        if (currentRun.length === 0) {
+          currentRun.push(t);
+        } else {
+          const prev = currentRun[currentRun.length - 1];
+          if (t.value === prev.value + 1) {
+            currentRun.push(t);
+          } else if (t.value === prev.value) {
+            // Duplicate number in same color, skip for now
+            continue;
+          } else {
+            // Break in sequence
+            if (currentRun.length >= 3) {
+              detectedPers.push([...currentRun]);
+              currentRun.forEach(item => usedIds.add(item.id));
+            }
+            currentRun = [t];
+          }
+        }
+      }
+
+      if (currentRun.length >= 3) {
+        detectedPers.push([...currentRun]);
+        currentRun.forEach(item => usedIds.add(item.id));
+      }
+    }
+
+    // 2. Find groups of same number, different colors
+    const byValue = {};
+    for (const t of normals) {
+      if (usedIds.has(t.id)) continue;
+      byValue[t.value] = byValue[t.value] || [];
+      byValue[t.value].push(t);
+    }
+
+    for (const val in byValue) {
+      const list = byValue[val];
+      const uniqueColors = [];
+      const seen = new Set();
+      for (const t of list) {
+        if (!seen.has(t.color)) {
+          uniqueColors.push(t);
+          seen.add(t.color);
+        }
+      }
+      if (uniqueColors.length >= 3) {
+        detectedPers.push([...uniqueColors]);
+        uniqueColors.forEach(item => usedIds.add(item.id));
+      }
+    }
+
+    // 3. Assemble result: complete pers first, then remaining tiles, then wildcards
+    const remaining = normals.filter(t => !usedIds.has(t.id)).sort((a, b) => {
+      if (a.color === b.color) return a.value - b.value;
+      return a.color.localeCompare(b.color);
+    });
+
+    const result = [];
+    for (const per of detectedPers) {
+      result.push(...per);
+      result.push(null); // Gap between pers!
+    }
+
+    if (result.length > 0 && result[result.length - 1] === null) {
+      // Keep gap
+    }
+
+    result.push(...wildcards);
+    if (wildcards.length > 0) result.push(null);
+    result.push(...remaining);
+
+    return result;
+  }
+
+  /**
+   * Smartly organizes hand into pairs (Çift Diz)
+   */
+  static autoArrangePairs(hand, okeyInfo) {
+    if (!hand || hand.length === 0) return [];
+
+    const wildcards = hand.filter(t => this.isWildOkey(t, okeyInfo));
+    const normals = hand.filter(t => !this.isWildOkey(t, okeyInfo));
+
+    const pairs = [];
+    const usedIds = new Set();
+
+    // Find identical normals
+    for (let i = 0; i < normals.length; i++) {
+      const a = normals[i];
+      if (usedIds.has(a.id)) continue;
+
+      for (let j = i + 1; j < normals.length; j++) {
+        const b = normals[j];
+        if (usedIds.has(b.id)) continue;
+
+        if (a.color === b.color && a.value === b.value) {
+          pairs.push([a, b]);
+          usedIds.add(a.id);
+          usedIds.add(b.id);
+          break;
+        }
+      }
+    }
+
+    // Pair remaining with wildcards if any
+    const remainingNormals = normals.filter(t => !usedIds.has(t.id));
+    let wildIndex = 0;
+    while (wildIndex < wildcards.length && remainingNormals.length > 0) {
+      const normal = remainingNormals.shift();
+      const wild = wildcards[wildIndex++];
+      pairs.push([normal, wild]);
+      usedIds.add(normal.id);
+      usedIds.add(wild.id);
+    }
+
+    // Pair remaining wildcards with each other
+    while (wildIndex + 1 < wildcards.length) {
+      pairs.push([wildcards[wildIndex], wildcards[wildIndex + 1]]);
+      usedIds.add(wildcards[wildIndex].id);
+      usedIds.add(wildcards[wildIndex + 1].id);
+      wildIndex += 2;
+    }
+
+    const leftovers = hand.filter(t => !usedIds.has(t.id)).sort((a, b) => {
+      if (a.color === b.color) return a.value - b.value;
+      return a.color.localeCompare(b.color);
+    });
+
+    const result = [];
+    for (const pair of pairs) {
+      result.push(pair[0], pair[1]);
+      result.push(null); // Space between pairs
+    }
+    result.push(...leftovers);
+
+    return result;
+  }
 }

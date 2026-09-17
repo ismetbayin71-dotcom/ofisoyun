@@ -89,6 +89,7 @@ function App() {
         <GameBoard
           gameState={gameState}
           currentSocketId={myPeerId || network.getId()}
+          chatMessages={roomState?.chatMessages || []}
           onLeaveRoom={handleLeaveRoom}
         />
       )}

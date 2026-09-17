@@ -219,11 +219,13 @@ class P2PNetwork {
     if (this.localRoom.game) {
       // Local host state
       const hostGameState = this.localRoom.game.getClientState(this.myId);
+      hostGameState.chatMessages = this.localRoom.chatMessages || [];
       this.emitLocal('game:state', hostGameState);
 
       // Tailored client states to each peer
       for (const [peerId, conn] of this.connections.entries()) {
         const guestGameState = this.localRoom.game.getClientState(peerId);
+        guestGameState.chatMessages = this.localRoom.chatMessages || [];
         conn.send({ type: 'game:state', state: guestGameState });
       }
     }
