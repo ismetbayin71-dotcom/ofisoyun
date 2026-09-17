@@ -20,6 +20,9 @@ export const TileRack = ({
   onFinishClassic,
   onOpenRuns101,
   onOpenPairs101,
+  onProcessPair,
+  openedType = null,
+  hasPairOpenerOnTable = false,
   onSelectForProcess,
   selectedTileForProcess,
   remainingTiles = 0,
@@ -357,6 +360,7 @@ export const TileRack = ({
   };
 
   // 101 OPEN PAIRS ACTION
+  // 101 OPEN OR PROCESS PAIRS ACTION
   const handleOpen101PairsClick = () => {
     if (!isMyTurn || !hasDrawn) {
       alert('Önce taş çekmelisiniz!');
@@ -368,6 +372,27 @@ export const TileRack = ({
       : hand;
 
     const { pairs, pairCount } = RuleValidator.find101Pairs(tilesToScan, okeyInfo);
+
+    // If player already opened with runs: they PROCESS pairs to a pair-opener!
+    if (hasOpened && openedType === 'runs') {
+      if (!hasPairOpenerOnTable) {
+        alert('101 Okey Kuralı:\n\nMasada henüz hiç çift açan oyuncu olmadığı için çift işleyemezsiniz.\nÇift işleyebilmek için masada en az bir oyuncunun çift açmış olması gerekir.');
+        return;
+      }
+      if (pairs.length === 0) {
+        alert('Elinizde veya seçtiğiniz taşlar arasında işlenebilecek geçerli bir çift bulunamadı.');
+        return;
+      }
+      sound.playTileClick();
+      if (onProcessPair) {
+        onProcessPair(pairs[0][0], pairs[0][1]);
+      } else {
+        onOpenPairs101([pairs[0]]);
+      }
+      setSelectedFor101Ids([]);
+      setSelectedSlotIndex(null);
+      return;
+    }
 
     if (hasOpened) {
       if (pairs.length === 0) {
@@ -395,6 +420,8 @@ export const TileRack = ({
   // Live selected tiles details for 101
   const selected101Tiles = hand.filter(t => selectedFor101Ids.includes(t.id));
   const selected101Points = selected101Tiles.reduce((acc, t) => acc + (t.value || 0), 0);
+  const isSelectedPair = selected101Tiles.length === 2 && RuleValidator.isPair(selected101Tiles[0], selected101Tiles[1], okeyInfo);
+  const allPairsInHand = (gameType === '101') ? RuleValidator.find101Pairs(hand, okeyInfo).pairs : [];
 
   // Selected tile for discard
   const selectedTileToDiscard = selectedSlotIndex !== null
@@ -436,7 +463,8 @@ export const TileRack = ({
               <span>Açılabilir: <strong style={{ color: bestPersPoints >= minRequiredPoints ? '#38ef7d' : '#f87171' }}>{bestPersPoints}/{minRequiredPoints}</strong></span>
             </div>
 
-            {selected101Tiles.length > 0 && (
+            {/* Selected run opener button (if not pair) */}
+            {selected101Tiles.length > 0 && !isSelectedPair && (
               <button
                 className="btn-primary"
                 disabled={!isMyTurn || !hasDrawn}
@@ -446,6 +474,24 @@ export const TileRack = ({
               >
                 <CheckCircle size={15} style={{ marginRight: 4 }} />
                 Seçilenleri Aç ({selected101Points} Puan)
+              </button>
+            )}
+
+            {/* Selected pair processor button for run-openers */}
+            {hasOpened && openedType === 'runs' && isSelectedPair && (
+              <button
+                className="btn-primary"
+                disabled={!isMyTurn || !hasDrawn || !hasPairOpenerOnTable}
+                style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)', borderColor: '#93c5fd' }}
+                onClick={() => {
+                  onProcessPair && onProcessPair(selected101Tiles[0], selected101Tiles[1]);
+                  setSelectedFor101Ids([]);
+                  setSelectedSlotIndex(null);
+                }}
+                title="Seçtiğiniz çifti masadaki çift açan oyuncuya işleyin"
+              >
+                <Layers size={15} style={{ marginRight: 4 }} />
+                ⚡ Seçilen Çifti İşle ({selected101Tiles[0].value}-{selected101Tiles[1].value})
               </button>
             )}
 
@@ -460,16 +506,41 @@ export const TileRack = ({
               {hasOpened ? 'Yeni Per Aç' : 'Otomatik Seri Aç (101)'}
             </button>
 
-            <button
-              className="btn-secondary"
-              disabled={!isMyTurn || !hasDrawn}
-              style={{ opacity: (!isMyTurn || !hasDrawn) ? 0.5 : 1, borderColor: '#38ef7d', color: '#38ef7d' }}
-              onClick={handleOpen101PairsClick}
-              title={hasOpened ? 'Çift aç' : 'En az 5 çift aç'}
-            >
-              <Layers size={15} style={{ marginRight: 4 }} />
-              {hasOpened ? 'Çift Aç' : 'Çift Aç (5 Çift)'}
-            </button>
+            {hasOpened && openedType === 'runs' ? (
+              <button
+                className="btn-secondary"
+                disabled={!isMyTurn || !hasDrawn || !hasPairOpenerOnTable || allPairsInHand.length === 0}
+                style={{
+                  opacity: (!isMyTurn || !hasDrawn || !hasPairOpenerOnTable || allPairsInHand.length === 0) ? 0.5 : 1,
+                  borderColor: '#60a5fa',
+                  color: '#93c5fd'
+                }}
+                onClick={handleOpen101PairsClick}
+                title={
+                  !hasPairOpenerOnTable
+                    ? 'Masada çift açmış bir oyuncu olmadığı için çift işleyemezsiniz'
+                    : allPairsInHand.length === 0
+                      ? 'Elinizde işlenebilecek çift taş yok'
+                      : 'Elinizdeki çifti masadaki çift açan oyuncuya işleyin'
+                }
+              >
+                <Layers size={15} style={{ marginRight: 4 }} />
+                {allPairsInHand.length > 0
+                  ? `⚡ Çift İşle (${allPairsInHand[0][0].color} ${allPairsInHand[0][0].value})`
+                  : '⚡ Çift İşle'}
+              </button>
+            ) : (
+              <button
+                className="btn-secondary"
+                disabled={!isMyTurn || !hasDrawn}
+                style={{ opacity: (!isMyTurn || !hasDrawn) ? 0.5 : 1, borderColor: '#38ef7d', color: '#38ef7d' }}
+                onClick={handleOpen101PairsClick}
+                title={hasOpened ? 'Çift aç' : 'En az 5 çift aç'}
+              >
+                <Layers size={15} style={{ marginRight: 4 }} />
+                {hasOpened ? 'Çift Aç' : 'Çift Aç (5 Çift)'}
+              </button>
+            )}
           </div>
         )}
 

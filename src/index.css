@@ -542,19 +542,25 @@ input, select {
 .table-felt-zone {
   flex: 1;
   width: 100%;
-  max-width: 980px;
+  max-width: 1060px;
   background: radial-gradient(circle at center, rgba(16, 54, 34, 0.95) 0%, rgba(8, 28, 18, 0.98) 100%);
   border: 2px solid rgba(229, 185, 76, 0.25);
-  border-radius: 18px;
-  padding: 10px 14px;
+  border-radius: 20px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  min-height: 230px;
-  max-height: 340px;
+  min-height: 330px;
+  max-height: 480px;
   box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.85), 0 8px 24px rgba(0, 0, 0, 0.55);
   position: relative;
   box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.table-felt-zone::-webkit-scrollbar {
+  display: none;
 }
 
 .table-felt-zone.classic-felt {
@@ -566,8 +572,8 @@ input, select {
 .table-4quadrant-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 8px;
+  grid-template-rows: minmax(140px, auto) minmax(140px, auto);
+  gap: 10px;
   width: 100%;
   height: 100%;
   flex: 1;
@@ -576,11 +582,11 @@ input, select {
 .table-player-quadrant {
   background: rgba(0, 0, 0, 0.45);
   border: 1.5px solid rgba(229, 185, 76, 0.2);
-  border-radius: 10px;
-  padding: 6px 10px;
+  border-radius: 12px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  min-height: 100px;
+  min-height: 140px;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
   transition: all 0.2s ease;
   overflow: hidden;
@@ -592,12 +598,21 @@ input, select {
   box-shadow: 0 0 16px rgba(229, 185, 76, 0.35), inset 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
+.table-player-quadrant.is-pair-quadrant {
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+.table-player-quadrant.is-pair-quadrant:hover {
+  border-color: rgba(96, 165, 250, 0.85);
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.4), inset 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
 .quadrant-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 4px;
-  margin-bottom: 5px;
+  padding-bottom: 5px;
+  margin-bottom: 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -608,14 +623,14 @@ input, select {
 }
 
 .quadrant-name {
-  font-size: 0.84rem;
+  font-size: 0.86rem;
   font-weight: 800;
   color: #fff;
   letter-spacing: 0.3px;
 }
 
 .quadrant-badge {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 800;
   padding: 2px 8px;
   border-radius: 9999px;
@@ -637,11 +652,18 @@ input, select {
 .quadrant-pers-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   align-items: flex-start;
   align-content: flex-start;
   overflow-y: auto;
   flex: 1;
+  min-height: 100px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.quadrant-pers-container::-webkit-scrollbar {
+  display: none;
 }
 
 .quadrant-empty-hint {
@@ -650,12 +672,12 @@ input, select {
   justify-content: center;
   width: 100%;
   height: 100%;
-  min-height: 44px;
+  min-height: 80px;
   color: rgba(255, 255, 255, 0.28);
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-style: italic;
   border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .process-guide-banner {

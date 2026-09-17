@@ -235,6 +235,22 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
     });
   };
 
+  // Process Pair onto Table (101 Okey)
+  const handleProcessPair = (tile1, tile2, targetSeatIdx = null) => {
+    if (!isMyTurn || !hasDrawn) return;
+    sound.playTileClick();
+    network.emit('game:processPair', {
+      roomId: gameState.roomId,
+      tileId1: tile1.id,
+      tileId2: tile2.id,
+      targetSeatIndex: targetSeatIdx
+    }, (res) => {
+      if (!res.success) {
+        alert(res.message || 'Çift işlenemedi.');
+      }
+    });
+  };
+
   // Next round
   const handleNextRound = () => {
     network.emit('game:nextRound', { roomId: gameState.roomId });
@@ -270,9 +286,14 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
       );
       const { pers } = RuleValidator.findBest101Pers(candidateHand, okeyInfo);
       const formsNewPer = pers.some(per => per.some(t => t.id === leftDiscardTile.id));
-      return canProcess || formsNewPer;
+      const hasPairOpener = (gameState.openedHands || []).some(h => h && h.type === 'pairs');
+      const formsPair = hasPairOpener && (viewer?.hand || []).some(t =>
+        RuleValidator.isPair(t, leftDiscardTile, okeyInfo)
+      );
+
+      return canProcess || formsNewPer || formsPair;
     }
-  }, [isMyTurn, hasDrawn, leftDiscardTile, gameType, viewer?.hand, viewer?.hasOpened, okeyInfo, minRequiredPoints, tablePers]);
+  }, [isMyTurn, hasDrawn, leftDiscardTile, gameType, viewer?.hand, viewer?.hasOpened, okeyInfo, minRequiredPoints, tablePers, gameState.openedHands]);
 
   const messagesList = gameState.chatMessages || chatMessages || [];
 
@@ -664,6 +685,9 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           onFinishClassic={handleFinishClassic}
           onOpenRuns101={handleOpenRuns101}
           onOpenPairs101={handleOpenPairs101}
+          onProcessPair={handleProcessPair}
+          openedType={viewer?.hasOpened ? gameState.openedHands?.[viewerSeatIdx]?.type : null}
+          hasPairOpenerOnTable={(gameState.openedHands || []).some(h => h && h.type === 'pairs')}
           onSelectForProcess={(tile) => setSelectedProcessTile(tile)}
           selectedTileForProcess={selectedProcessTile}
           remainingTiles={remainingTiles}

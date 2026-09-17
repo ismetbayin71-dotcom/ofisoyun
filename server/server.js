@@ -244,6 +244,16 @@ io.on('connection', (socket) => {
     if (callback) callback(res);
   });
 
+  // Process Pair onto Table (101 Okey)
+  socket.on('game:processPair', ({ roomId, tileId1, tileId2, targetSeatIndex }, callback) => {
+    const room = roomManager.getRoom(roomId);
+    if (!room || !room.game || room.game.gameType !== '101') return;
+
+    const res = room.game.processPair(socket.id, tileId1, tileId2, targetSeatIndex);
+    broadcastGameState(room);
+    if (callback) callback(res);
+  });
+
   // Advance Round
   socket.on('game:nextRound', ({ roomId }) => {
     const room = roomManager.getRoom(roomId);

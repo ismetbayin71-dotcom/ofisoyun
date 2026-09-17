@@ -110,12 +110,17 @@ export class Okey101Game {
         );
         const { pers } = RuleValidator.findBest101Pers(candidateHand, this.okeyInfo);
         const formsNewPer = pers.some(per => per.some(t => t.id === candidateTile.id));
-        if (!canProcess && !formsNewPer) {
+        const hasPairOpener = this.openedHands.some(h => h && h.type === 'pairs');
+        const formsPairWithHand = hasPairOpener && player.hand.some(t =>
+          RuleValidator.isPair(t, candidateTile, this.okeyInfo)
+        );
+
+        if (!canProcess && !formsNewPer && !formsPairWithHand) {
           return {
             allowed: false,
             message:
               `101 Okey Kuralı:\n\n` +
-              `Elini açmış bir oyuncu, yandan taşı sadece masadaki bir pere işleyebiliyorsa veya yeni bir per açabiliyorsa alabilir.`
+              `Elini açmış bir oyuncu, yandan taşı sadece masadaki bir pere işleyebiliyorsa, yeni bir per açabiliyorsa veya masada çift açmış birine çift işleyebiliyorsa alabilir.`
           };
         }
       } else if (openerType === 'pairs') {
@@ -264,13 +269,19 @@ export class Okey101Game {
     return { success: true, points: validation.points };
   }
 
-  openPairsHand(playerId, pairs) {
+  openPairsHand(playerId, pairs, targetSeatIndex = null) {
     const pIdx = this.getPlayerIndex(playerId);
     if (pIdx !== this.turnIndex || !this.hasDrawn) {
       return { success: false, message: 'Sıra sizde değil veya taş çekilmedi.' };
     }
 
     const alreadyOpened = !!this.openedHands[pIdx];
+
+    // If player already opened with runs: they cannot open pairs for themselves, they process pairs to a pair-opener!
+    if (alreadyOpened && this.openedHands[pIdx].type === 'runs') {
+      return this.processPairs(playerId, pairs, targetSeatIndex);
+    }
+
     const minPairs = alreadyOpened ? 1 : 5;
     if (!pairs || pairs.length < minPairs) {
       return { success: false, message: alreadyOpened ? 'En az 1 çift seçmelisiniz.' : 'Çift açmak için en az 5 çift gereklidir.' };
@@ -326,6 +337,94 @@ export class Okey101Game {
     return { success: true };
   }
 
+  processPairs(playerId, pairs, targetSeatIndex = null) {
+    const pIdx = this.getPlayerIndex(playerId);
+    if (pIdx !== this.turnIndex || !this.hasDrawn) {
+      return { success: false, message: 'Sıra sizde değil veya taş çekilmedi.' };
+    }
+
+    if (!this.openedHands[pIdx]) {
+      return { success: false, message: 'Çift işlemek için önce elinizi açmış olmalısınız.' };
+    }
+
+    // Find pair opener target
+    let targetIdx = targetSeatIndex;
+    if (targetIdx === null || !this.openedHands[targetIdx] || this.openedHands[targetIdx].type !== 'pairs') {
+      targetIdx = this.openedHands.findIndex(h => h && h.type === 'pairs');
+    }
+
+    if (targetIdx === -1) {
+      return {
+        success: false,
+        message: '101 Kuralı: Masada henüz hiç çift açan oyuncu olmadığı için çift işleyemezsiniz.'
+      };
+    }
+
+    if (!pairs || pairs.length === 0) {
+      return { success: false, message: 'İşlenecek çift bulunamadı.' };
+    }
+
+    for (const pair of pairs) {
+      if (pair.length !== 2 || !RuleValidator.isPair(pair[0], pair[1], this.okeyInfo)) {
+        return { success: false, message: 'Geçersiz çift bulundu.' };
+      }
+    }
+
+    const player = this.players[pIdx];
+    const targetPlayer = this.players[targetIdx];
+    const requestedTileIds = pairs.flat().map(t => t.id);
+    const handMap = new Map(player.hand.map(t => [t.id, t]));
+
+    for (const id of requestedTileIds) {
+      if (!handMap.has(id)) {
+        return { success: false, message: 'İşlenecek taşlar elinizde bulunamadı!' };
+      }
+    }
+
+    // Remove from player's hand
+    player.hand = player.hand.filter(t => !requestedTileIds.includes(t.id));
+
+    // Place pairs into target player's table area!
+    for (const pair of pairs) {
+      this.tablePers.push({
+        id: `pair-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        playerId: targetPlayer.id,
+        playerIndex: targetIdx,
+        tiles: pair,
+        isPair: true,
+        processedBy: player.name
+      });
+    }
+
+    if (this.openedHands[targetIdx]) {
+      this.openedHands[targetIdx].pairCount = (this.openedHands[targetIdx].pairCount || 0) + pairs.length;
+    }
+
+    this.lastAction = {
+      type: 'PAIR_PROCESSED',
+      message: `${player.name}, ${targetPlayer.name} oyuncusunun eline ${pairs.length} çift işledi.`
+    };
+
+    return { success: true };
+  }
+
+  processPair(playerId, tileId1, tileId2, targetSeatIndex = null) {
+    const pIdx = this.getPlayerIndex(playerId);
+    if (pIdx !== this.turnIndex || !this.hasDrawn) {
+      return { success: false, message: 'Sıra sizde değil veya taş çekilmedi.' };
+    }
+
+    const player = this.players[pIdx];
+    const t1 = player.hand.find(t => t.id === tileId1);
+    const t2 = player.hand.find(t => t.id === tileId2);
+
+    if (!t1 || !t2 || t1.id === t2.id) {
+      return { success: false, message: 'İşlenecek çift elinizde bulunamadı.' };
+    }
+
+    return this.processPairs(playerId, [[t1, t2]], targetSeatIndex);
+  }
+
   processTile(playerId, tileId, targetPerId) {
     const pIdx = this.getPlayerIndex(playerId);
     if (pIdx !== this.turnIndex || !this.hasDrawn) {
@@ -355,11 +454,11 @@ export class Okey101Game {
       };
     }
 
-    // 101 Rule: A player who opened runs CANNOT process onto pairs!
-    if (this.openedHands[pIdx].type === 'runs' && targetPer.isPair) {
+    // 101 Rule: Single tile cannot be processed into a 2-tile pair!
+    if (targetPer.isPair) {
       return {
         success: false,
-        message: '101 Kuralı: Seri açan oyuncular çiftlere taş işleyemez!'
+        message: '101 Kuralı: Çiftlere tek taş işlenemez. Çift işlemek için elinizdeki 2 eş taşı seçip "Çift İşle" butonunu kullanınız.'
       };
     }
 

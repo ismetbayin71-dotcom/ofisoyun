@@ -130,6 +130,16 @@ export class BotAI {
       }
     }
 
+    // CASE 3: Process pairs if opened with runs and table has a pair opener
+    const pairOpenerIdx = (game.openedHands || []).findIndex(h => h && h.type === 'pairs');
+    if (hasOpened && openerType === 'runs' && pairOpenerIdx !== -1) {
+      const { pairs } = RuleValidator.find101Pairs(botPlayer.hand, game.okeyInfo);
+      if (pairs.length > 0) {
+        const res = game.processPairs(botPlayer.id, pairs, pairOpenerIdx);
+        if (res.success) return true;
+      }
+    }
+
     return false;
   }
 
