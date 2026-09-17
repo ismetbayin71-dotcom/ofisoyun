@@ -10,20 +10,34 @@ export class BotAI {
     setTimeout(() => {
       if (game.status !== 'playing' || game.turnIndex !== pIdx) return;
 
+      // STEP 1: DRAW TILE
       if (!game.hasDrawn) {
-        const leftPlayerIdx = (pIdx + 3) % 4;
-        const leftPile = game.discardPiles[leftPlayerIdx];
-        const topDiscard = leftPile && leftPile.length > 0 ? leftPile[leftPile.length - 1] : null;
-
         let shouldDrawDiscard = false;
-        if (topDiscard && game.okeyInfo) {
-          const isWild = RuleValidator.isWildOkey(topDiscard, game.okeyInfo);
-          const hasPair = botPlayer.hand.some(t => RuleValidator.isPair(t, topDiscard, game.okeyInfo));
 
-          if (isWild || hasPair) {
-            if (game.gameType === '101') {
-              if (game.openedHands[pIdx]) shouldDrawDiscard = true;
-            } else {
+        if (game.gameType === '101') {
+          // In 101 Okey, only draw from discard if allowed and beneficial
+          if (game.canDrawFromDiscard) {
+            const check = game.canDrawFromDiscard(botPlayer.id);
+            if (check && check.allowed) {
+              shouldDrawDiscard = true;
+            }
+          }
+        } else {
+          // Classic Okey: draw if wildcard or pairs/connects with hand
+          const leftPlayerIdx = (pIdx + 3) % 4;
+          const leftPile = game.discardPiles[leftPlayerIdx];
+          const topDiscard = leftPile && leftPile.length > 0 ? leftPile[leftPile.length - 1] : null;
+
+          if (topDiscard && game.okeyInfo) {
+            const isWild = RuleValidator.isWildOkey(topDiscard, game.okeyInfo);
+            const hasPair = botPlayer.hand.some(t => RuleValidator.isPair(t, topDiscard, game.okeyInfo));
+            const hasRunConnector = botPlayer.hand.some(t =>
+              !RuleValidator.isWildOkey(t, game.okeyInfo) &&
+              t.color === topDiscard.color &&
+              Math.abs(t.value - topDiscard.value) === 1
+            );
+
+            if (isWild || hasPair || hasRunConnector) {
               shouldDrawDiscard = true;
             }
           }
@@ -37,10 +51,12 @@ export class BotAI {
         if (onUpdate) onUpdate();
       }
 
+      // STEP 2: OPEN HAND, PROCESS TILES, AND DISCARD
       setTimeout(() => {
         if (game.status !== 'playing' || game.turnIndex !== pIdx) return;
 
         if (game.gameType === 'classic') {
+          // Classic Okey: Check if hand can win with any discarded tile
           for (let i = 0; i < botPlayer.hand.length; i++) {
             const candidateTile = botPlayer.hand[i];
             const testHand = botPlayer.hand.filter((_, idx) => idx !== i);
@@ -52,108 +68,159 @@ export class BotAI {
             }
           }
         } else if (game.gameType === '101') {
-          if (!game.openedHands[pIdx]) {
-            this.tryOpenHand101(game, botPlayer);
-          }
-          if (game.openedHands[pIdx]) {
+          // 101 Okey: 1. Try to open hand or open new pers/pairs
+          this.tryOpenHand101(game, botPlayer);
+
+          // 101 Okey: 2. If opened, try to process tiles onto table pers
+          if (game.openedHands && game.openedHands[pIdx]) {
             this.tryProcessTiles101(game, botPlayer);
           }
         }
 
-        const discardTile = this.chooseTileToDiscard(botPlayer.hand, game.okeyInfo);
+        // STEP 3: DISCARD TILE
+        const discardTile = this.chooseTileToDiscard(botPlayer.hand, game.okeyInfo, game);
         if (discardTile) {
           game.discardTile(botPlayer.id, discardTile.id, false);
-          if (onUpdate) onUpdate();
+        } else if (botPlayer.hand.length > 0) {
+          game.discardTile(botPlayer.id, botPlayer.hand[0].id, false);
         }
+
+        if (onUpdate) onUpdate();
       }, 700);
     }, 600);
   }
 
+  /**
+   * Intelligently evaluates and opens pers or pairs in 101 Okey
+   */
   static tryOpenHand101(game, botPlayer) {
-    const hand = botPlayer.hand;
-    const okeyInfo = game.okeyInfo;
+    const pIdx = game.getPlayerIndex(botPlayer.id);
+    if (pIdx === -1) return;
 
-    const byColor = { red: [], blue: [], black: [], yellow: [] };
-    for (const t of hand) {
-      if (!RuleValidator.isWildOkey(t, okeyInfo) && byColor[t.color]) {
-        byColor[t.color].push(t);
-      }
-    }
+    const hasOpened = !!(game.openedHands && game.openedHands[pIdx]);
+    const openerType = hasOpened ? game.openedHands[pIdx].type : null;
+    const minRequired = hasOpened ? 0 : (game.options.folded ? game.highestOpenedPoints : 101);
 
-    const foundPers = [];
-    const usedTileIds = new Set();
+    // CASE 1: Open Runs/Groups (or add more pers if already opened with runs)
+    if (!hasOpened || openerType === 'runs') {
+      const { pers, totalPoints } = RuleValidator.findBest101Pers(botPlayer.hand, game.okeyInfo);
 
-    for (const color in byColor) {
-      const sorted = [...byColor[color]].sort((a, b) => a.value - b.value);
-      for (let i = 0; i <= sorted.length - 3; i++) {
-        const c1 = sorted[i];
-        const c2 = sorted[i + 1];
-        const c3 = sorted[i + 2];
-        if (
-          c2.value === c1.value + 1 &&
-          c3.value === c2.value + 1 &&
-          !usedTileIds.has(c1.id) &&
-          !usedTileIds.has(c2.id) &&
-          !usedTileIds.has(c3.id)
-        ) {
-          foundPers.push([c1, c2, c3]);
-          usedTileIds.add(c1.id);
-          usedTileIds.add(c2.id);
-          usedTileIds.add(c3.id);
+      if (pers.length > 0) {
+        if (!hasOpened && totalPoints >= minRequired) {
+          const res = game.openRunsHand(botPlayer.id, pers);
+          if (res.success) return true;
+        } else if (hasOpened && pers.length > 0) {
+          // Already opened earlier: open any new complete per
+          const res = game.openRunsHand(botPlayer.id, pers);
+          if (res.success) return true;
         }
       }
     }
 
-    if (foundPers.length > 0) {
-      const minRequired = game.options.folded ? game.highestOpenedPoints : 101;
-      const validation = RuleValidator.validate101Opening(foundPers, okeyInfo, minRequired);
-      if (validation.valid) {
-        game.openRunsHand(botPlayer.id, foundPers);
+    // CASE 2: Open Pairs (if not opened with runs)
+    if (!hasOpened || openerType === 'pairs') {
+      const { pairs, pairCount } = RuleValidator.find101Pairs(botPlayer.hand, game.okeyInfo);
+
+      if (!hasOpened && pairCount >= 5) {
+        const res = game.openPairsHand(botPlayer.id, pairs.slice(0, 5));
+        if (res.success) return true;
+      } else if (hasOpened && openerType === 'pairs' && pairs.length > 0) {
+        const res = game.openPairsHand(botPlayer.id, pairs);
+        if (res.success) return true;
       }
     }
+
+    return false;
   }
 
+  /**
+   * Processes tiles from bot hand onto table pers adhering to 101 rules
+   */
   static tryProcessTiles101(game, botPlayer) {
-    if (!game.tablePers || game.tablePers.length === 0) return;
+    const pIdx = game.getPlayerIndex(botPlayer.id);
+    if (pIdx === -1 || !game.openedHands || !game.openedHands[pIdx]) return false;
+    if (!game.tablePers || game.tablePers.length === 0) return false;
 
-    for (const per of game.tablePers) {
-      for (let i = 0; i < botPlayer.hand.length; i++) {
-        const tile = botPlayer.hand[i];
-        if (RuleValidator.isWildOkey(tile, game.okeyInfo)) continue;
+    const openerType = game.openedHands[pIdx].type;
+    let anyProcessed = false;
 
-        const can = RuleValidator.canProcessTile(tile, per.tiles, game.okeyInfo);
-        if (can) {
-          const res = game.processTile(botPlayer.id, tile.id, per.id);
-          if (res.success) return;
+    // Loop repeatedly while tiles can still be processed and bot keeps at least 1 tile for discard
+    let keepSearching = true;
+    while (keepSearching && botPlayer.hand.length > 1) {
+      keepSearching = false;
+
+      for (const per of game.tablePers) {
+        // Pair openers cannot process onto runs; run openers cannot process onto pairs
+        if (openerType === 'pairs' && !per.isPair) continue;
+        if (openerType === 'runs' && per.isPair) continue;
+
+        for (let i = 0; i < botPlayer.hand.length; i++) {
+          const tile = botPlayer.hand[i];
+          // Do not process wildcards carelessly
+          if (RuleValidator.isWildOkey(tile, game.okeyInfo)) continue;
+
+          const can = RuleValidator.canProcessTile(tile, per.tiles, game.okeyInfo);
+          if (can) {
+            const res = game.processTile(botPlayer.id, tile.id, per.id);
+            if (res.success) {
+              anyProcessed = true;
+              keepSearching = true;
+              break;
+            }
+          }
         }
+        if (keepSearching) break;
       }
     }
+
+    return anyProcessed;
   }
 
-  static chooseTileToDiscard(hand, okeyInfo) {
+  /**
+   * Intelligently selects the least valuable/isolated tile to discard
+   */
+  static chooseTileToDiscard(hand, okeyInfo, game = null) {
     if (!hand || hand.length === 0) return null;
 
+    // Never discard Okey (wildcard) if there are other tiles
     const nonWild = hand.filter(t => !RuleValidator.isWildOkey(t, okeyInfo));
     if (nonWild.length === 0) return hand[0];
+    if (nonWild.length === 1) return nonWild[0];
 
+    // Find tiles that are part of complete pairs or near-pers
     let lowestScore = Infinity;
     let worstTile = nonWild[0];
 
     for (const t of nonWild) {
       let score = 0;
+
       for (const other of nonWild) {
         if (t.id === other.id) continue;
+
+        // Same color adjacency
         if (t.color === other.color) {
           const diff = Math.abs(t.value - other.value);
-          if (diff === 1) score += 4;
-          else if (diff === 2) score += 2;
+          if (diff === 1) score += 5; // Direct neighbor (e.g. 5-6)
+          else if (diff === 2) score += 3; // Gap neighbor (e.g. 5-7)
         }
+
+        // Same value different color (group potential)
         if (t.value === other.value && t.color !== other.color) {
-          score += 3;
+          score += 4;
         }
+
+        // Exact duplicate (pair potential)
         if (t.value === other.value && t.color === other.color) {
-          score += 5;
+          score += 6;
         }
+      }
+
+      // Check if tile is in a valid per with rest of hand
+      const otherTiles = nonWild.filter(o => o.id !== t.id);
+      const testPers = RuleValidator.findBest101Pers(nonWild, okeyInfo).pers;
+      const inPer = testPers.some(per => per.some(tile => tile.id === t.id));
+      if (inPer) {
+        score += 15; // Strongly protect tiles that form valid pers!
       }
 
       if (score < lowestScore) {
