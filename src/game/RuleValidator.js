@@ -134,6 +134,125 @@ export class RuleValidator {
     return { valid: true, points: totalPoints };
   }
 
+  /**
+   * Scans a collection of tiles and finds non-overlapping valid pers (runs/groups)
+   * that maximize the total 101 point score.
+   */
+  static findBest101Pers(tiles, okeyInfo) {
+    if (!tiles || tiles.length < 3) return { pers: [], totalPoints: 0 };
+
+    const candidatePers = [];
+    const n = tiles.length;
+
+    // Generate valid 3, 4, 5-tile combinations
+    const getCombinations = (arr, size, start = 0, current = []) => {
+      if (current.length === size) {
+        if (this.isValidGroup(current, okeyInfo)) {
+          candidatePers.push({
+            tiles: [...current],
+            pts: this.getPerPoints(current, okeyInfo)
+          });
+        } else if (this.isValidRunPermutation(current, okeyInfo)) {
+          // Sort run into canonical order
+          const sorted = [...current].sort((a, b) => a.value - b.value);
+          const hasOne = sorted.find(t => t.value === 1 && !this.isWildOkey(t, okeyInfo));
+          let orderedRun = sorted;
+          if (hasOne && !this.isValidRun(sorted, okeyInfo)) {
+            const rest = sorted.filter(t => t !== hasOne);
+            orderedRun = [...rest, hasOne];
+          }
+          candidatePers.push({
+            tiles: orderedRun,
+            pts: this.getPerPoints(orderedRun, okeyInfo)
+          });
+        }
+        return;
+      }
+      for (let i = start; i < arr.length; i++) {
+        current.push(arr[i]);
+        getCombinations(arr, size, i + 1, current);
+        current.pop();
+      }
+    };
+
+    for (let size = 3; size <= Math.min(5, n); size++) {
+      getCombinations(tiles, size);
+    }
+
+    // Sort candidate pers descending by points
+    candidatePers.sort((a, b) => b.pts - a.pts);
+
+    let bestPers = [];
+    let maxScore = 0;
+
+    const backtrack = (startIdx, currentPers, usedIds, currentScore) => {
+      if (currentScore > maxScore) {
+        maxScore = currentScore;
+        bestPers = currentPers.map(p => [...p]);
+      }
+
+      for (let i = startIdx; i < candidatePers.length; i++) {
+        const cand = candidatePers[i];
+        let hasOverlap = false;
+        for (const t of cand.tiles) {
+          if (usedIds.has(t.id)) {
+            hasOverlap = true;
+            break;
+          }
+        }
+
+        if (!hasOverlap) {
+          for (const t of cand.tiles) usedIds.add(t.id);
+          currentPers.push(cand.tiles);
+
+          backtrack(i + 1, currentPers, usedIds, currentScore + cand.pts);
+
+          currentPers.pop();
+          for (const t of cand.tiles) usedIds.delete(t.id);
+        }
+      }
+    };
+
+    backtrack(0, [], new Set(), 0);
+
+    return { pers: bestPers, totalPoints: maxScore };
+  }
+
+  /**
+   * Finds all non-overlapping pairs in a collection of tiles
+   */
+  static find101Pairs(tiles, okeyInfo) {
+    if (!tiles || tiles.length < 2) return { pairs: [], pairCount: 0 };
+
+    const pairs = [];
+    const usedIds = new Set();
+    const wildcards = tiles.filter(t => this.isWildOkey(t, okeyInfo));
+    const normals = tiles.filter(t => !this.isWildOkey(t, okeyInfo));
+
+    for (let i = 0; i < normals.length; i++) {
+      const a = normals[i];
+      if (usedIds.has(a.id)) continue;
+      for (let j = i + 1; j < normals.length; j++) {
+        const b = normals[j];
+        if (usedIds.has(b.id)) continue;
+        if (a.color === b.color && a.value === b.value) {
+          pairs.push([a, b]);
+          usedIds.add(a.id);
+          usedIds.add(b.id);
+          break;
+        }
+      }
+    }
+
+    const remainingNormals = normals.filter(t => !usedIds.has(t.id));
+    let wildIdx = 0;
+    while (wildIdx < wildcards.length && remainingNormals.length > 0) {
+      pairs.push([remainingNormals.shift(), wildcards[wildIdx++]]);
+    }
+
+    return { pairs, pairCount: pairs.length };
+  }
+
   static validate101Pairs(pairs, okeyInfo) {
     if (!pairs || pairs.length < 5) {
       return { valid: false, reason: 'Çift açmak için en az 5 çift gereklidir.' };

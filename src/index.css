@@ -532,19 +532,24 @@ input, select {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   position: relative;
+  height: 100%;
+  width: 100%;
 }
 
-.deck-and-indicator-cluster {
+/* Compact Deck & Indicator Dock */
+.deck-dock-bar {
   display: flex;
   align-items: center;
-  gap: 32px;
-  background: rgba(5, 20, 12, 0.5);
-  padding: 16px 28px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.4);
+  justify-content: center;
+  gap: 24px;
+  background: rgba(5, 20, 12, 0.6);
+  padding: 8px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  margin-bottom: 8px;
 }
 
 .draw-deck-container {
@@ -556,19 +561,19 @@ input, select {
 }
 
 .draw-deck-container:hover {
-  transform: translateY(-4px) scale(1.03);
+  transform: translateY(-3px) scale(1.03);
 }
 
 .draw-deck-stack {
   position: relative;
-  width: 52px;
-  height: 72px;
+  width: 44px;
+  height: 60px;
 }
 
 .deck-layer {
   position: absolute;
-  width: 50px;
-  height: 70px;
+  width: 42px;
+  height: 58px;
   background: linear-gradient(135deg, #f7f3e8 0%, #ded7c3 100%);
   border: 1px solid #b5ab92;
   border-radius: 6px;
@@ -576,45 +581,151 @@ input, select {
 }
 
 .deck-count-badge {
-  margin-top: 8px;
-  font-size: 0.8rem;
+  margin-top: 4px;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-muted);
 }
 
-/* 101 TABLE OPENED PERS SECTION */
-.table-pers-area {
-  margin-top: 14px;
+/* 101 SPILLED OPEN PERS CENTER ZONE (Spacious Green Felt) */
+.table-felt-zone {
+  flex: 1;
   width: 100%;
-  max-height: 180px;
+  max-width: 800px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 2px dashed rgba(229, 185, 76, 0.25);
+  border-radius: 18px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
+  max-height: 240px;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.felt-zone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--gold-accent);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.felt-empty-notice {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.85rem;
+  padding: 20px;
+}
+
+.table-pers-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  align-items: center;
   justify-content: center;
-  padding: 8px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.2);
 }
 
 .open-per-group {
   display: flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 4px;
-  border-radius: 8px;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 6px 8px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   transition: all 0.2s;
+}
+
+.per-opener-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gold-accent);
+  margin-bottom: 4px;
 }
 
 .open-per-group.process-target {
   cursor: pointer;
   border-color: #38ef7d;
-  box-shadow: 0 0 10px rgba(56, 239, 125, 0.5);
+  box-shadow: 0 0 12px rgba(56, 239, 125, 0.6);
+  background: rgba(56, 239, 125, 0.12);
 }
 
 .open-per-group.process-target:hover {
-  transform: scale(1.05);
+  transform: scale(1.04);
+}
+
+/* PERSISTENT SCORE HUD WIDGET IN CORNER */
+.hud-corner-card {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  background: rgba(14, 28, 20, 0.95);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(229, 185, 76, 0.35);
+  border-radius: 16px;
+  padding: 12px 18px;
+  min-width: 220px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+  z-index: 90;
+  pointer-events: none;
+}
+
+.hud-corner-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--gold-accent);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hud-corner-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.hud-corner-row strong {
+  color: #fff;
+}
+
+.hud-badge-ready {
+  display: block;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  color: #34d399;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.hud-badge-wait {
+  display: block;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+  text-align: center;
 }
 
 /* DISCARD PILES (4 CORNERS) */
@@ -801,6 +912,7 @@ input, select {
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
   overflow-x: auto;
   align-items: center;
+  justify-content: center;
 }
 
 /* Individual Slot on the Wooden Istaka */

@@ -9,7 +9,10 @@ export const Tile = ({
   mini = false,
   className = '',
   draggable = false,
-  onDragStart
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd
 }) => {
   if (!tile) return null;
 
@@ -28,24 +31,27 @@ export const Tile = ({
       onDoubleClick={onDoubleClick}
       draggable={draggable}
       onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       title={isWildOkey ? 'Okey (Joker)' : `${tile.color} ${tile.value}`}
     >
       {/* Wildcard Okey Star Badge */}
-      {isWildOkey && <span className="okey-wildcard-star">★</span>}
+      {isWildOkey && <span className="okey-wildcard-star" style={{ pointerEvents: 'none' }}>★</span>}
 
-      {/* Sahte Okey Crescent/Special Badge */}
+      {/* Sahte Okey Badge */}
       {tile.isFakeJoker ? (
-        <div className="fake-joker-container" style={{ textAlign: 'center' }}>
+        <div className="fake-joker-container" style={{ textAlign: 'center', pointerEvents: 'none' }}>
           <div className="tile-number">{tile.value}</div>
-          <div style={{ fontSize: mini ? '7px' : '9px', fontWeight: 700, color: 'inherit', opacity: 0.8 }}>
+          <div style={{ fontSize: mini ? '7px' : '9px', fontWeight: 700, color: 'inherit', opacity: 0.85 }}>
             SAHTE
           </div>
         </div>
       ) : (
-        <>
+        <div style={{ pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <span className="tile-number">{tile.value}</span>
           <span className="tile-dot"></span>
-        </>
+        </div>
       )}
     </div>
   );

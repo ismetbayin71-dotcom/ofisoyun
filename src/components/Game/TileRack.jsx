@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Tile } from './Tile.jsx';
 import { RuleValidator } from '../../game/RuleValidator.js';
 import { sound } from '../../utils/soundEffects.js';
-import { Sparkles, CheckCircle, ArrowDownCircle, Trophy, Shuffle, Split } from 'lucide-react';
+import { Sparkles, CheckCircle, ArrowDownCircle, Trophy, Split, Layers } from 'lucide-react';
 
 export const TileRack = ({
   hand = [],
@@ -10,9 +10,11 @@ export const TileRack = ({
   isMyTurn,
   hasDrawn,
   gameType,
+  minRequiredPoints = 101,
   onDiscard,
   onFinishClassic,
   onOpenRuns101,
+  onOpenPairs101,
   onSelectForProcess,
   selectedTileForProcess
 }) => {
@@ -29,14 +31,14 @@ export const TileRack = ({
   const [selectedFor101Ids, setSelectedFor101Ids] = useState([]);
   const [draggedSlot, setDraggedSlot] = useState(null);
 
-  // Sync with incoming hand changes (draws, discards) while keeping user layout
+  // Sync with incoming hand changes (draws, discards, opens) while keeping user layout
   useEffect(() => {
     setSlots(prevSlots => {
       const currentHandIds = new Set(hand.map(t => t.id));
       const handMap = new Map(hand.map(t => [t.id, t]));
       const newSlots = prevSlots.map(t => (t && currentHandIds.has(t.id) ? handMap.get(t.id) : null));
 
-      // Find tiles in hand not yet placed in slots
+      // Find tiles in hand not yet placed in any slot
       const placedIds = new Set(newSlots.filter(Boolean).map(t => t.id));
       const unplacedTiles = hand.filter(t => !placedIds.has(t.id));
 
@@ -51,7 +53,7 @@ export const TileRack = ({
     });
   }, [hand]);
 
-  // DRAG & DROP HANDLERS
+  // DRAG & DROP HANDLERS (Works across slots, tiles, and rows)
   const handleDragStart = (e, slotIdx) => {
     if (!slots[slotIdx]) return;
     setDraggedSlot(slotIdx);
@@ -66,7 +68,12 @@ export const TileRack = ({
 
   const handleDrop = (e, targetSlotIdx) => {
     e.preventDefault();
-    if (draggedSlot === null || draggedSlot === targetSlotIdx) return;
+    e.stopPropagation();
+
+    if (draggedSlot === null || draggedSlot === targetSlotIdx) {
+      setDraggedSlot(null);
+      return;
+    }
 
     sound.playTileClick();
     setSlots(prev => {
@@ -81,12 +88,16 @@ export const TileRack = ({
     setSelectedSlotIndex(null);
   };
 
+  const handleDragEnd = () => {
+    setDraggedSlot(null);
+  };
+
   // CLICK & SWAP / SELECTION HANDLER
   const handleSlotClick = (slotIdx) => {
     const tile = slots[slotIdx];
 
     if (gameType === '101') {
-      // 101 multi-select for per opening
+      // 101 multi-select for per opening or processing
       if (tile) {
         sound.playTileClick();
         if (selectedFor101Ids.includes(tile.id)) {
@@ -160,7 +171,64 @@ export const TileRack = ({
     setSelectedFor101Ids([]);
   };
 
-  // 101 Selected Details
+  // 101 OPEN RUNS ACTION (Intelligent Per Detection & Validation)
+  const handleOpen101RunsClick = () => {
+    if (!isMyTurn || !hasDrawn) {
+      alert('Önce ortadan veya yandan taş çekmelisiniz!');
+      return;
+    }
+
+    // If user specifically selected tiles, evaluate those selected tiles
+    // If no tiles are selected, evaluate the entire hand!
+    const tilesToScan = selectedFor101Ids.length >= 3
+      ? hand.filter(t => selectedFor101Ids.includes(t.id))
+      : hand;
+
+    const { pers, totalPoints } = RuleValidator.findBest101Pers(tilesToScan, okeyInfo);
+
+    if (pers.length === 0) {
+      alert('Seçtiğiniz taşlar geçerli bir seri (en az 3 ardışık aynı renk) veya grup (en az 3 farklı renk aynı sayı) oluşturmuyor!');
+      return;
+    }
+
+    if (totalPoints < minRequiredPoints) {
+      alert(
+        `Açılabilen geçerli perlerinizin toplamı ${totalPoints} puan ediyor.\n` +
+        `101 barajı için en az ${minRequiredPoints} puan gereklidir (${minRequiredPoints - totalPoints} puan eksik).`
+      );
+      return;
+    }
+
+    // We have valid pers meeting the threshold!
+    sound.playTileClick();
+    onOpenRuns101(pers);
+    setSelectedFor101Ids([]);
+  };
+
+  // 101 OPEN PAIRS ACTION
+  const handleOpen101PairsClick = () => {
+    if (!isMyTurn || !hasDrawn) {
+      alert('Önce taş çekmelisiniz!');
+      return;
+    }
+
+    const tilesToScan = selectedFor101Ids.length >= 10
+      ? hand.filter(t => selectedFor101Ids.includes(t.id))
+      : hand;
+
+    const { pairs, pairCount } = RuleValidator.find101Pairs(tilesToScan, okeyInfo);
+
+    if (pairCount < 5) {
+      alert(`Çift açmak için en az 5 çift (10 taş) gereklidir. Şu an elinizde ${pairCount} çift var.`);
+      return;
+    }
+
+    sound.playTileClick();
+    onOpenPairs101(pairs.slice(0, 5));
+    setSelectedFor101Ids([]);
+  };
+
+  // Live selected tiles details for 101
   const selected101Tiles = hand.filter(t => selectedFor101Ids.includes(t.id));
   const selected101Points = selected101Tiles.reduce((acc, t) => acc + (t.value || 0), 0);
 
@@ -169,9 +237,9 @@ export const TileRack = ({
 
   return (
     <div className="user-game-rack-area">
-      {/* Rack Control Bar */}
+      {/* Rack Action Bar */}
       <div className="rack-control-bar">
-        {/* Organization buttons */}
+        {/* Auto Arrange buttons */}
         <div className="rack-actions-group">
           <button
             className="btn-secondary"
@@ -200,19 +268,27 @@ export const TileRack = ({
                 Seçilen: {selected101Tiles.length} Taş ({selected101Points} Puan)
               </span>
             )}
+
             <button
               className="btn-primary"
-              disabled={!isMyTurn || !hasDrawn || selected101Tiles.length < 3}
-              style={{ opacity: (!isMyTurn || !hasDrawn || selected101Tiles.length < 3) ? 0.4 : 1 }}
-              onClick={() => {
-                if (onOpenRuns101) {
-                  onOpenRuns101([selected101Tiles]);
-                  setSelectedFor101Ids([]);
-                }
-              }}
+              disabled={!isMyTurn || !hasDrawn}
+              style={{ opacity: (!isMyTurn || !hasDrawn) ? 0.5 : 1 }}
+              onClick={handleOpen101RunsClick}
+              title="Perleri masaya aç (101 barajı)"
             >
               <CheckCircle size={15} style={{ marginRight: 4 }} />
-              Per Aç ({selected101Points} Puan)
+              Seri Aç (101 Barajı)
+            </button>
+
+            <button
+              className="btn-secondary"
+              disabled={!isMyTurn || !hasDrawn}
+              style={{ opacity: (!isMyTurn || !hasDrawn) ? 0.5 : 1, borderColor: '#38ef7d', color: '#38ef7d' }}
+              onClick={handleOpen101PairsClick}
+              title="En az 5 çift aç"
+            >
+              <Layers size={15} style={{ marginRight: 4 }} />
+              Çift Aç (5 Çift)
             </button>
           </div>
         )}
@@ -249,20 +325,20 @@ export const TileRack = ({
           )}
 
           {isMyTurn && !hasDrawn && (
-            <span style={{ color: '#38ef7d', fontWeight: 800, fontSize: '0.9rem', animation: 'pulseAura 1.5s infinite' }}>
+            <span style={{ color: '#38ef7d', fontWeight: 800, fontSize: '0.9rem', animation: 'bannerPulse 1.2s infinite' }}>
               👉 Ortadan veya Yandan Taş Çekiniz!
             </span>
           )}
 
           {isMyTurn && hasDrawn && !selectedTileToDiscard && gameType === 'classic' && (
             <span style={{ color: '#e5b94c', fontWeight: 700, fontSize: '0.85rem' }}>
-              Atacağınız veya bitireceğiniz taşa tıklayın
+              Atacağınız taşa tıklayın
             </span>
           )}
         </div>
       </div>
 
-      {/* Realistic 2-Row Wooden Istaka (Slot-Based) */}
+      {/* Realistic 2-Row Wooden Istaka (Slot-Based, 15 slots per row) */}
       <div className="wood-istaka">
         {/* Row 1 (Slots 0 to 14) */}
         <div className="istaka-row">
@@ -289,6 +365,9 @@ export const TileRack = ({
                     selected={isSelected}
                     draggable={true}
                     onDragStart={(e) => handleDragStart(e, slotIdx)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, slotIdx)}
+                    onDragEnd={handleDragEnd}
                   />
                 )}
               </div>
@@ -321,6 +400,9 @@ export const TileRack = ({
                     selected={isSelected}
                     draggable={true}
                     onDragStart={(e) => handleDragStart(e, slotIdx)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, slotIdx)}
+                    onDragEnd={handleDragEnd}
                   />
                 )}
               </div>

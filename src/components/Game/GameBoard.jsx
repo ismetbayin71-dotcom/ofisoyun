@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { network } from '../../utils/network.js';
 import { sound } from '../../utils/soundEffects.js';
+import { RuleValidator } from '../../game/RuleValidator.js';
 import { Tile } from './Tile.jsx';
 import { TileRack } from './TileRack.jsx';
 import { ScoreModal } from '../UI/ScoreModal.jsx';
 import { ChatDrawer } from '../UI/ChatDrawer.jsx';
-import { Volume2, VolumeX, LogOut, Info, Bot, Sparkles, HelpCircle } from 'lucide-react';
+import { Volume2, VolumeX, LogOut, HelpCircle, Bot, Sparkles, Layers } from 'lucide-react';
 
 export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLeaveRoom }) => {
   const [muted, setMuted] = useState(false);
@@ -28,6 +29,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
     lastAction,
     tablePers = [],
     discardPiles = [],
+    highestOpenedPoints = 101,
     options = {}
   } = gameState;
 
@@ -51,7 +53,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
     }
   }, [lastAction]);
 
-  // Relative player seats (South = Viewer, West = Right, North = Top, East = Left)
+  // Relative player seats
   const getRelativePlayer = (offset) => {
     if (viewerSeatIdx === -1) return { player: players[offset], seatIndex: offset };
     const targetIdx = (viewerSeatIdx + offset) % 4;
@@ -61,6 +63,37 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
   const leftOpponent = getRelativePlayer(3);  // Left player
   const topOpponent = getRelativePlayer(2);   // Opposite player
   const rightOpponent = getRelativePlayer(1); // Right player
+
+  // Calculate live hand stats for the persistent HUD corner widget
+  const handStats = useMemo(() => {
+    const hand = viewer?.hand || [];
+    const totalPoints = hand.reduce((acc, t) => acc + (t.value || 0), 0);
+
+    let bestPersPoints = 0;
+    let bestPers = [];
+    let pairCount = 0;
+
+    if (gameType === '101') {
+      const perScan = RuleValidator.findBest101Pers(hand, okeyInfo);
+      bestPersPoints = perScan.totalPoints;
+      bestPers = perScan.pers;
+
+      const pairScan = RuleValidator.find101Pairs(hand, okeyInfo);
+      pairCount = pairScan.pairCount;
+    }
+
+    return {
+      tileCount: hand.length,
+      totalPoints,
+      bestPersPoints,
+      bestPers,
+      pairCount
+    };
+  }, [viewer?.hand, okeyInfo, gameType]);
+
+  const minRequiredPoints = options.folded ? highestOpenedPoints : 101;
+  const canOpenRuns = handStats.bestPersPoints >= minRequiredPoints;
+  const canOpenPairs = handStats.pairCount >= 5;
 
   // Draw tile action
   const handleDrawTile = (fromDiscard = false) => {
@@ -94,7 +127,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           'Klasik Okey kurallarına göre:\n' +
           '• Elinizdeki 14 taşın TAMAMI geçerli serilerden (aynı renk ardışık en az 3 taş) veya gruplardan (farklı renk aynı sayı) oluşmalıdır.\n' +
           '• VEYA 7 çift taştan oluşmalıdır.\n' +
-          '• Perlere uymayan tek bir taşınız bile varsa oyunu bitiremezsiniz.'
+          '• Boşta kalan tek bir taşınız bile varsa oyunu bitiremezsiniz.'
         );
       }
     });
@@ -104,7 +137,16 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
   const handleOpenRuns101 = (pers) => {
     network.emit('game:openRuns', { roomId: gameState.roomId, pers }, (res) => {
       if (!res.success) {
-        alert(res.message || 'Per açılamadı! Toplam puanın 101 barajını geçtiğinden ve perlerin geçerli olduğundan emin olun.');
+        alert(res.message || 'Per açılamadı! Toplam puanın barajı geçtiğinden emin olun.');
+      }
+    });
+  };
+
+  // Open 101 Pairs
+  const handleOpenPairs101 = (pairs) => {
+    network.emit('game:openPairs', { roomId: gameState.roomId, pairs }, (res) => {
+      if (!res.success) {
+        alert(res.message || 'Çift açılamadı!');
       }
     });
   };
@@ -201,8 +243,8 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         </div>
       </header>
 
-      {/* PROMINENT, UNMISSABLE TURN STATUS BANNER */}
-      <div className="turn-banner-container" style={{ marginTop: 8 }}>
+      {/* PROMINENT TURN STATUS BANNER */}
+      <div className="turn-banner-container" style={{ marginTop: 6 }}>
         {isMyTurn ? (
           <div className="turn-banner my-turn">
             <span style={{ fontSize: '1.5rem' }}>🎯</span>
@@ -210,14 +252,14 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
               <strong>SIRA SİZDE!</strong>{' '}
               <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
                 {!hasDrawn
-                  ? 'Ortadaki desteden veya solunuzdaki oyuncudan bir taş çekin.'
-                  : 'Taşınızı çektiniz. İşe yaramayan bir taşı atın veya per açın/bitiş yapın.'}
+                  ? 'Ortadaki desteden veya solunuzdaki oyuncudan taş çekiniz.'
+                  : 'Taşınızı çektiniz. İşe yaramayan bir taşı atın veya per açın/bitin.'}
               </span>
             </div>
           </div>
         ) : (
           <div className="turn-banner other-turn">
-            <span style={{ fontSize: '1.2rem', animation: 'spin 2s linear infinite' }}>⏳</span>
+            <span style={{ fontSize: '1.2rem' }}>⏳</span>
             <span>
               Sıra <strong>{activePlayerName}</strong> oyuncusunda... Hamlesi bekleniyor.
             </span>
@@ -247,7 +289,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
               </div>
             </div>
           )}
-          <div className="discard-slot" style={{ marginTop: 8 }}>
+          <div className="discard-slot" style={{ marginTop: 6 }}>
             {getDiscardForSeat(topOpponent.seatIndex) && (
               <Tile tile={getDiscardForSeat(topOpponent.seatIndex)} okeyInfo={okeyInfo} mini />
             )}
@@ -278,7 +320,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           {/* Left player discard pile */}
           <div
             className={`discard-slot ${isLeftDiscardDrawable ? 'can-draw' : ''}`}
-            style={{ marginTop: 12 }}
+            style={{ marginTop: 10 }}
             onClick={() => isLeftDiscardDrawable && handleDrawTile(true)}
             title={isLeftDiscardDrawable ? 'Yandan Taş Çek' : ''}
           >
@@ -296,8 +338,9 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         </div>
 
         {/* CENTER TABLE ARENA */}
-        <div className="table-center">
-          <div className="deck-and-indicator-cluster">
+        <div className={`table-center ${gameType === '101' ? 'mode-101' : ''}`}>
+          {/* Deck and Indicator Dock */}
+          <div className="deck-dock-bar">
             {/* Draw Deck */}
             <div
               className="draw-deck-container"
@@ -309,47 +352,64 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                 <div className="deck-layer" style={{ top: -3, left: -2 }}></div>
                 <div className="deck-layer" style={{ top: -6, left: -4 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <span style={{ fontSize: '1rem', color: '#a39879', fontWeight: 800 }}>OKEY</span>
+                    <span style={{ fontSize: '0.85rem', color: '#a39879', fontWeight: 800 }}>OKEY</span>
                   </div>
                 </div>
               </div>
               <span className="deck-count-badge">{remainingTiles} Taş</span>
               {isMyTurn && !hasDrawn && (
-                <span style={{ fontSize: '0.75rem', color: '#38ef7d', fontWeight: 800, marginTop: 4, animation: 'bannerPulse 1.2s infinite' }}>
-                  👆 ORTADAN ÇEK
+                <span style={{ fontSize: '0.72rem', color: '#38ef7d', fontWeight: 800, marginTop: 2, animation: 'bannerPulse 1.2s infinite' }}>
+                  👆 ÇEK
                 </span>
               )}
             </div>
 
             {/* Gösterge Tile */}
             <div style={{ display: 'flex', alignItems: 'center', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: 4, textTransform: 'uppercase', fontWeight: 700 }}>
+              <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 2, textTransform: 'uppercase', fontWeight: 700 }}>
                 Gösterge
               </span>
-              <Tile tile={indicator} okeyInfo={null} />
+              <Tile tile={indicator} okeyInfo={null} mini />
             </div>
           </div>
 
-          {/* 101 Table Open Pers Area */}
+          {/* 101 Table Opened Pers Area: Spacious Central Felt */}
           {gameType === '101' && (
-            <div className="table-pers-area">
+            <div className="table-felt-zone">
+              <div className="felt-zone-header">
+                <span>MASAYA AÇILAN PERLER</span>
+                {selectedProcessTile && (
+                  <span style={{ color: '#38ef7d', fontWeight: 700, animation: 'bannerPulse 1.2s infinite' }}>
+                    👉 Seçtiğiniz ({selectedProcessTile.color} {selectedProcessTile.value}) taşını işlemek için pere tıklayın!
+                  </span>
+                )}
+              </div>
+
               {tablePers.length === 0 ? (
-                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', padding: '12px' }}>
-                  Henüz masaya per açan olmadı (101 barajı bekleniyor).
+                <div className="felt-empty-notice">
+                  Henüz masaya per açan olmadı. 101 puan barajını geçen oyuncuların açtığı perler burada görüntülenecektir.
                 </div>
               ) : (
-                tablePers.map((per) => (
-                  <div
-                    key={per.id}
-                    className={`open-per-group ${selectedProcessTile ? 'process-target' : ''}`}
-                    onClick={() => handleProcessTileClick(per)}
-                    title={selectedProcessTile ? 'Seçtiğiniz taşı bu pere işleyin' : ''}
-                  >
-                    {per.tiles.map((t, tidx) => (
-                      <Tile key={t.id || tidx} tile={t} okeyInfo={okeyInfo} mini />
-                    ))}
-                  </div>
-                ))
+                <div className="table-pers-grid">
+                  {tablePers.map((per) => {
+                    const openerName = players[per.playerIndex]?.name || 'Oyuncu';
+                    return (
+                      <div
+                        key={per.id}
+                        className={`open-per-group ${selectedProcessTile ? 'process-target' : ''}`}
+                        onClick={() => handleProcessTileClick(per)}
+                        title={selectedProcessTile ? 'Seçtiğiniz taşı bu pere işleyin' : ''}
+                      >
+                        <span className="per-opener-label">{openerName}</span>
+                        <div style={{ display: 'flex', gap: 2 }}>
+                          {per.tiles.map((t, tidx) => (
+                            <Tile key={t.id || tidx} tile={t} okeyInfo={okeyInfo} mini />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
@@ -376,7 +436,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
             </div>
           )}
 
-          <div className="discard-slot" style={{ marginTop: 12 }}>
+          <div className="discard-slot" style={{ marginTop: 10 }}>
             {getDiscardForSeat(rightOpponent.seatIndex) && (
               <Tile tile={getDiscardForSeat(rightOpponent.seatIndex)} okeyInfo={okeyInfo} />
             )}
@@ -392,12 +452,56 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           isMyTurn={isMyTurn}
           hasDrawn={hasDrawn}
           gameType={gameType}
+          minRequiredPoints={minRequiredPoints}
           onDiscard={handleDiscardTile}
           onFinishClassic={handleFinishClassic}
           onOpenRuns101={handleOpenRuns101}
+          onOpenPairs101={handleOpenPairs101}
           onSelectForProcess={(tile) => setSelectedProcessTile(tile)}
           selectedTileForProcess={selectedProcessTile}
         />
+      )}
+
+      {/* PERSISTENT SCORE & HAND STATUS CORNER HUD */}
+      {viewer && (
+        <div className="hud-corner-card">
+          <div className="hud-corner-title">EL DURUMUNUZ</div>
+          <div className="hud-corner-row">
+            <span>Eldeki Taş:</span>
+            <strong>{handStats.tileCount} adet</strong>
+          </div>
+          <div className="hud-corner-row">
+            <span>Toplam Taş Puanı:</span>
+            <strong>{handStats.totalPoints} puan</strong>
+          </div>
+
+          {gameType === '101' && (
+            <>
+              <div className="hud-corner-row">
+                <span>Açılabilir Seri:</span>
+                <strong style={{ color: canOpenRuns ? '#38ef7d' : '#f87171' }}>
+                  {handStats.bestPersPoints} / {minRequiredPoints}
+                </strong>
+              </div>
+              <div className="hud-corner-row">
+                <span>Açılabilir Çift:</span>
+                <strong style={{ color: canOpenPairs ? '#38ef7d' : '#f87171' }}>
+                  {handStats.pairCount} / 5 çift
+                </strong>
+              </div>
+
+              <div style={{ marginTop: 6 }}>
+                {canOpenRuns ? (
+                  <span className="hud-badge-ready">🟢 101 Barajı Geçildi ({handStats.bestPersPoints} Puan)</span>
+                ) : canOpenPairs ? (
+                  <span className="hud-badge-ready">🟢 5 Çift Hazır ({handStats.pairCount} Çift)</span>
+                ) : (
+                  <span className="hud-badge-wait">🔴 101 İçin {minRequiredPoints - handStats.bestPersPoints} Puan Lazım</span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* Score Modal */}
@@ -419,33 +523,31 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         playerName={viewer?.name || 'Oyuncu'}
       />
 
-      {/* Rules & Help Modal */}
+      {/* Rules Modal */}
       {showRulesModal && (
         <div className="modal-overlay" onClick={() => setShowRulesModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'left', maxWidth: 600 }}>
-            <h2 style={{ textAlign: 'center', marginBottom: 16 }}>Okey Kuralları ve Bitiş Şartları</h2>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'left', maxWidth: 620 }}>
+            <h2 style={{ textAlign: 'center', marginBottom: 16 }}>Okey Kuralları ve Bitiş Rehberi</h2>
 
             <div style={{ maxHeight: 380, overflowY: 'auto', fontSize: '0.9rem', lineHeight: 1.6, color: '#e2e8f0', paddingRight: 8 }}>
               <h3 style={{ color: '#e5b94c', marginBottom: 4 }}>1. Klasik Düz Okey Bitiş Şartları</h3>
-              <p>• Elinizdeki 14 taşın <strong>TAMAMI</strong> geçerli serilerden veya gruplardan oluşmalıdır. Tek bir boşta kalan taş bile varken bitemezsiniz.</p>
-              <p>• <strong>Seri (Sıralı):</strong> Aynı renkte en az 3 ardışık sayı (Örn: Kırmızı 4-5-6 veya 11-12-13-1).</p>
-              <p>• <strong>Grup (Eşli):</strong> Farklı renklerde aynı sayılardan oluşan en az 3'lü grup (Örn: Kırmızı 7, Siyah 7, Mavi 7).</p>
-              <p>• <strong>Çifte Bitiş:</strong> Tüm elinizi 7 çiftten (aynı renk ve sayıdan 2'şer taş) oluşturup 15. taşı atarak biterseniz rakiplere ceza katlanır.</p>
-              <p>• <strong>Okey Atarak Bitiş:</strong> 14 taşınız perliyken, elinizde kalan Okey taşını yere bitiş taşı olarak atarsanız skor katlanır.</p>
+              <p>• 14 taşınızın <strong>TAMAMI</strong> geçerli serilerden (aynı renk ardışık 3+ taş) veya gruplardan (farklı renk aynı sayı) veya 7 çiftten oluşmalıdır.</p>
+              <p>• <strong>Okey Atarak Bitiş:</strong> Elinizi bitirirken son taş olarak yere Okey atarsanız kazanılan puan ikiye katlanır.</p>
+              <p>• <strong>Çifte Bitiş:</strong> Elinizi 7 çiftle bitirirseniz ceza katlanır.</p>
 
-              <h3 style={{ color: '#e5b94c', marginTop: 16, marginBottom: 4 }}>2. 101 Yüzbir Okey Kuralları</h3>
-              <p>• <strong>El Açma:</strong> Elinizdeki serilerin/grupların sayı toplamı <strong>en az 101 puan</strong> olmalıdır (veya en az 5 çift açılmalıdır).</p>
-              <p>• <strong>Taş İşleme:</strong> Sadece elini daha önce açmış olan oyuncular masadaki perlere taş işleyebilir.</p>
-              <p>• <strong>Katlamalı Mod:</strong> Bir oyuncu el açtığında, sonraki oyuncuların açabilmesi için onun puanından daha yüksek bir puanla açması gerekir.</p>
+              <h3 style={{ color: '#e5b94c', marginTop: 14, marginBottom: 4 }}>2. 101 Yüzbir Okey Kuralları</h3>
+              <p>• <strong>El Açma:</strong> Elinizdeki perlerin toplamı <strong>en az 101 puan</strong> olmalıdır (veya en az 5 çift açılmalıdır).</p>
+              <p>• <strong>Seri Aç Butonu:</strong> Otomatik olarak elinizdeki en yüksek puanlı geçerli perleri hesaplar ve 101'i geçiyorsa masaya açar.</p>
+              <p>• <strong>Taş İşleme:</strong> Elini açmış oyuncular masadaki perlere taş işleyebilir.</p>
 
-              <h3 style={{ color: '#e5b94c', marginTop: 16, marginBottom: 4 }}>3. Istaka Kullanımı</h3>
-              <p>• Taşları farenizle (veya parmağınızla) <strong>sürükleyip bırakarak</strong> istediğiniz yuvaya taşıyabilir veya yer değiştirebilirsiniz.</p>
-              <p>• <strong>Seri Diz</strong> butonu perlerinizi otomatik oluşturup aralarına boşluk bırakır.</p>
-              <p>• <strong>Çift Diz</strong> butonu elinizdeki çiftleri yan yana dizer.</p>
+              <h3 style={{ color: '#e5b94c', marginTop: 14, marginBottom: 4 }}>3. Istaka ve Sürükle-Bırak</h3>
+              <p>• Taşları farenizle (veya parmağınızla) sürükleyip istediğiniz boş yuvaya bırakabilirsiniz.</p>
+              <p>• <strong>Seri Diz:</strong> Perlerinizi oluşturur ve aralarında boşluk bırakır.</p>
+              <p>• <strong>Çift Diz:</strong> Çiftlerinizi yan yana dizer.</p>
             </div>
 
             <button className="btn-primary" style={{ width: '100%', marginTop: 20 }} onClick={() => setShowRulesModal(false)}>
-              Anladım
+              Kapat
             </button>
           </div>
         </div>
