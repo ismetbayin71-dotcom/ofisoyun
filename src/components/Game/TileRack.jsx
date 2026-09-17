@@ -21,7 +21,10 @@ export const TileRack = ({
   onOpenRuns101,
   onOpenPairs101,
   onSelectForProcess,
-  selectedTileForProcess
+  selectedTileForProcess,
+  remainingTiles = 0,
+  indicator = null,
+  onDrawDeck
 }) => {
   // 30-slot authentic Okey rack (15 top, 15 bottom)
   const [slots, setSlots] = useState(() => {
@@ -529,94 +532,129 @@ export const TileRack = ({
         </div>
       </div>
 
-      {/* Realistic 2-Row Wooden Istaka (Slot-Based, 15 slots per row) */}
-      <div
-        className="wood-istaka"
-        onDragOver={handleDragOver}
-        onDrop={(e) => {
-          e.preventDefault();
-          const rect = e.currentTarget.getBoundingClientRect();
-          const relativeY = e.clientY - rect.top;
-          const rowIndex = relativeY < rect.height / 2 ? 0 : 1;
-          handleRowDrop(e, rowIndex);
-        }}
-      >
-        {/* Row 1 (Slots 0 to 14) */}
-        <div
-          className="istaka-row"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleRowDrop(e, 0)}
-        >
-          {slots.slice(0, 15).map((tile, i) => {
-            const slotIdx = i;
-            const isSelected =
-              gameType === '101'
-                ? tile && selectedFor101Ids.includes(tile.id)
-                : selectedSlotIndex === slotIdx;
-
-            return (
-              <div
-                key={slotIdx}
-                className={`rack-slot ${tile ? 'has-tile' : 'empty-slot'} ${draggedSlot === slotIdx ? 'dragging' : ''}`}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, slotIdx)}
-                onClick={() => handleSlotClick(slotIdx)}
-                onDoubleClick={() => handleDoubleClick(slotIdx)}
-              >
-                {tile && (
-                  <Tile
-                    tile={tile}
-                    okeyInfo={okeyInfo}
-                    selected={isSelected}
-                    draggable={true}
-                    onDragStart={(e) => handleDragStart(e, slotIdx)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, slotIdx)}
-                    onDragEnd={handleDragEnd}
-                  />
-                )}
+      {/* Rack and Deck Container: Deck on the LEFT, Wood Istaka on the RIGHT */}
+      <div className="rack-and-dock-container">
+        {/* LEFT DOCK: DRAW DECK & GÖSTERGE */}
+        <div className={`istaka-left-deck-dock ${isMyTurn && !hasDrawn ? 'can-draw-pulse' : ''}`}>
+          {/* OKEY Draw Deck Stack */}
+          <div
+            className="deck-clickable-area"
+            onClick={() => isMyTurn && !hasDrawn && onDrawDeck && onDrawDeck()}
+            title={isMyTurn && !hasDrawn ? 'Ortadaki Desteden Taş Çekmek İçin Tıklayın' : 'Kalan Taş Destesi'}
+          >
+            <div className="draw-deck-stack">
+              <div className="deck-layer" style={{ top: 0, left: 0 }}></div>
+              <div className="deck-layer" style={{ top: -3, left: -2 }}></div>
+              <div className="deck-layer" style={{ top: -6, left: -4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#a39879', fontWeight: 900 }}>OKEY</span>
+                </div>
               </div>
-            );
-          })}
+            </div>
+            <span className="deck-count-badge">{remainingTiles} Taş</span>
+            {isMyTurn && !hasDrawn && (
+              <span className="deck-pulse-prompt">
+                👆 TAŞ ÇEK
+              </span>
+            )}
+          </div>
+
+          {/* Gösterge Tile */}
+          <div className="dock-gosterge-wrap">
+            <span className="dock-gosterge-label">GÖSTERGE</span>
+            <Tile tile={indicator} okeyInfo={null} mini />
+          </div>
         </div>
 
-        {/* Row 2 (Slots 15 to 29) */}
+        {/* Realistic 2-Row Wooden Istaka (Slot-Based, 15 slots per row) */}
         <div
-          className="istaka-row"
+          className="wood-istaka"
           onDragOver={handleDragOver}
-          onDrop={(e) => handleRowDrop(e, 1)}
+          onDrop={(e) => {
+            e.preventDefault();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const relativeY = e.clientY - rect.top;
+            const rowIndex = relativeY < rect.height / 2 ? 0 : 1;
+            handleRowDrop(e, rowIndex);
+          }}
         >
-          {slots.slice(15, 30).map((tile, i) => {
-            const slotIdx = 15 + i;
-            const isSelected =
-              gameType === '101'
-                ? tile && selectedFor101Ids.includes(tile.id)
-                : selectedSlotIndex === slotIdx;
+          {/* Row 1 (Slots 0 to 14) */}
+          <div
+            className="istaka-row"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleRowDrop(e, 0)}
+          >
+            {slots.slice(0, 15).map((tile, i) => {
+              const slotIdx = i;
+              const isSelected =
+                gameType === '101'
+                  ? tile && selectedFor101Ids.includes(tile.id)
+                  : selectedSlotIndex === slotIdx;
 
-            return (
-              <div
-                key={slotIdx}
-                className={`rack-slot ${tile ? 'has-tile' : 'empty-slot'} ${draggedSlot === slotIdx ? 'dragging' : ''}`}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, slotIdx)}
-                onClick={() => handleSlotClick(slotIdx)}
-                onDoubleClick={() => handleDoubleClick(slotIdx)}
-              >
-                {tile && (
-                  <Tile
-                    tile={tile}
-                    okeyInfo={okeyInfo}
-                    selected={isSelected}
-                    draggable={true}
-                    onDragStart={(e) => handleDragStart(e, slotIdx)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, slotIdx)}
-                    onDragEnd={handleDragEnd}
-                  />
-                )}
-              </div>
-            );
-          })}
+              return (
+                <div
+                  key={slotIdx}
+                  className={`rack-slot ${tile ? 'has-tile' : 'empty-slot'} ${draggedSlot === slotIdx ? 'dragging' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, slotIdx)}
+                  onClick={() => handleSlotClick(slotIdx)}
+                  onDoubleClick={() => handleDoubleClick(slotIdx)}
+                >
+                  {tile && (
+                    <Tile
+                      tile={tile}
+                      okeyInfo={okeyInfo}
+                      selected={isSelected}
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, slotIdx)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, slotIdx)}
+                      onDragEnd={handleDragEnd}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Row 2 (Slots 15 to 29) */}
+          <div
+            className="istaka-row"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleRowDrop(e, 1)}
+          >
+            {slots.slice(15, 30).map((tile, i) => {
+              const slotIdx = 15 + i;
+              const isSelected =
+                gameType === '101'
+                  ? tile && selectedFor101Ids.includes(tile.id)
+                  : selectedSlotIndex === slotIdx;
+
+              return (
+                <div
+                  key={slotIdx}
+                  className={`rack-slot ${tile ? 'has-tile' : 'empty-slot'} ${draggedSlot === slotIdx ? 'dragging' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, slotIdx)}
+                  onClick={() => handleSlotClick(slotIdx)}
+                  onDoubleClick={() => handleDoubleClick(slotIdx)}
+                >
+                  {tile && (
+                    <Tile
+                      tile={tile}
+                      okeyInfo={okeyInfo}
+                      selected={isSelected}
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, slotIdx)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, slotIdx)}
+                      onDragEnd={handleDragEnd}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

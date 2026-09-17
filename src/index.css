@@ -538,71 +538,137 @@ input, select {
   width: 100%;
 }
 
-/* Compact Deck & Indicator Dock */
-.deck-dock-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  background: rgba(5, 20, 12, 0.6);
-  padding: 8px 20px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  margin-bottom: 8px;
-}
-
-.draw-deck-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.draw-deck-container:hover {
-  transform: translateY(-3px) scale(1.03);
-}
-
-.draw-deck-stack {
-  position: relative;
-  width: 44px;
-  height: 60px;
-}
-
-.deck-layer {
-  position: absolute;
-  width: 42px;
-  height: 58px;
-  background: linear-gradient(135deg, #f7f3e8 0%, #ded7c3 100%);
-  border: 1px solid #b5ab92;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.deck-count-badge {
-  margin-top: 4px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-muted);
-}
-
-/* 101 SPILLED OPEN PERS CENTER ZONE (Authentic Spacious Green Velvet Table) */
+/* 101 SPILLED OPEN PERS CENTER ZONE (Spacious Velvet Table with 4-Quadrant Grid) */
 .table-felt-zone {
   flex: 1;
   width: 100%;
-  max-width: 960px;
+  max-width: 980px;
   background: radial-gradient(circle at center, rgba(16, 54, 34, 0.95) 0%, rgba(8, 28, 18, 0.98) 100%);
-  border: 2px solid rgba(229, 185, 76, 0.2);
-  border-radius: 20px;
-  padding: 16px 20px;
+  border: 2px solid rgba(229, 185, 76, 0.25);
+  border-radius: 18px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  min-height: 180px;
-  max-height: 280px;
-  box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.8), 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-height: 230px;
+  max-height: 340px;
+  box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.85), 0 8px 24px rgba(0, 0, 0, 0.55);
   position: relative;
+  box-sizing: border-box;
+}
+
+.table-felt-zone.classic-felt {
+  min-height: 180px;
+  max-height: 260px;
+}
+
+/* 101 Table 4-Quadrant Player Grid */
+.table-4quadrant-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+}
+
+.table-player-quadrant {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1.5px solid rgba(229, 185, 76, 0.2);
+  border-radius: 10px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+  transition: all 0.2s ease;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.table-player-quadrant.is-current-turn {
+  border-color: rgba(229, 185, 76, 0.8);
+  box-shadow: 0 0 16px rgba(229, 185, 76, 0.35), inset 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.quadrant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 4px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quadrant-player-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quadrant-name {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+
+.quadrant-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.2px;
+}
+
+.quadrant-badge.opened {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.quadrant-badge.waiting {
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.quadrant-pers-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-start;
+  align-content: flex-start;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.quadrant-empty-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 44px;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 0.76rem;
+  font-style: italic;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+}
+
+.process-guide-banner {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  color: #34d399;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  text-align: center;
+  animation: bannerPulse 1.4s infinite;
 }
 
 .felt-empty-open-table {
@@ -638,31 +704,15 @@ input, select {
   margin-top: 4px;
 }
 
-.table-pers-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: center;
-}
-
 .open-per-group {
   display: flex;
   flex-direction: column;
   background: rgba(0, 0, 0, 0.45);
-  padding: 6px 10px;
-  border-radius: 12px;
+  padding: 4px 6px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
   transition: all 0.2s;
-}
-
-.per-opener-label {
-  font-size: 0.72rem;
-  font-weight: 800;
-  color: var(--gold-accent);
-  margin-bottom: 4px;
-  letter-spacing: 0.4px;
 }
 
 .open-per-group.process-target {
@@ -948,7 +998,7 @@ input, select {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 900px;
+  max-width: 1040px;
   margin: 0 auto;
 }
 
@@ -964,6 +1014,105 @@ input, select {
 .rack-actions-group {
   display: flex;
   gap: 8px;
+}
+
+.rack-and-dock-container {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Authentic Wooden Istaka Left Deck Dock */
+.istaka-left-deck-dock {
+  width: 110px;
+  min-width: 100px;
+  background: linear-gradient(180deg, #422111 0%, #291408 50%, #1a0c05 100%);
+  border-radius: 12px 4px 4px 12px;
+  border-top: 2px solid #6b3b1f;
+  border-left: 2px solid #5a2f17;
+  border-bottom: 2px solid #3d1f10;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.7), inset 0 2px 4px rgba(255, 255, 255, 0.12);
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  box-sizing: border-box;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.istaka-left-deck-dock.can-draw-pulse {
+  border-color: #38ef7d;
+  box-shadow: 0 0 22px rgba(56, 239, 125, 0.65), inset 0 0 10px rgba(56, 239, 125, 0.25);
+  cursor: pointer;
+  animation: bannerPulse 1.4s infinite;
+}
+
+.deck-clickable-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  padding: 2px 0;
+}
+
+.deck-clickable-area:hover {
+  transform: scale(1.06);
+}
+
+.draw-deck-stack {
+  position: relative;
+  width: 44px;
+  height: 60px;
+}
+
+.deck-layer {
+  position: absolute;
+  width: 42px;
+  height: 58px;
+  background: linear-gradient(135deg, #f7f3e8 0%, #ded7c3 100%);
+  border: 1px solid #b5ab92;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.deck-count-badge {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.deck-pulse-prompt {
+  font-size: 0.72rem;
+  color: #38ef7d;
+  font-weight: 900;
+  margin-top: 3px;
+  letter-spacing: 0.5px;
+  animation: bannerPulse 1.1s infinite;
+  white-space: nowrap;
+}
+
+.dock-gosterge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 6px;
+  width: 100%;
+}
+
+.dock-gosterge-label {
+  font-size: 0.65rem;
+  color: #c4b998;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 3px;
 }
 
 .wood-istaka {

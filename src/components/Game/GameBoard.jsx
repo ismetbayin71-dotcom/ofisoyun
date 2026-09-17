@@ -64,6 +64,53 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
   const topOpponent = getRelativePlayer(2);   // Opposite player
   const rightOpponent = getRelativePlayer(1); // Right player
 
+  // 4 Player Quadrants for 101 Table Felt Zone
+  const openedHands = gameState.openedHands || [];
+  const tableQuadrants = useMemo(() => {
+    return [
+      {
+        id: 'left',
+        title: 'Sol Oyuncu',
+        player: leftOpponent.player,
+        seatIndex: leftOpponent.seatIndex,
+        isViewer: false,
+        isActiveTurn: turnIndex === leftOpponent.seatIndex,
+        openedInfo: openedHands[leftOpponent.seatIndex] || null,
+        pers: tablePers.filter(p => p.playerIndex === leftOpponent.seatIndex)
+      },
+      {
+        id: 'top',
+        title: 'Karşı Oyuncu',
+        player: topOpponent.player,
+        seatIndex: topOpponent.seatIndex,
+        isViewer: false,
+        isActiveTurn: turnIndex === topOpponent.seatIndex,
+        openedInfo: openedHands[topOpponent.seatIndex] || null,
+        pers: tablePers.filter(p => p.playerIndex === topOpponent.seatIndex)
+      },
+      {
+        id: 'bottom',
+        title: 'Siz',
+        player: viewer,
+        seatIndex: viewerSeatIdx,
+        isViewer: true,
+        isActiveTurn: turnIndex === viewerSeatIdx,
+        openedInfo: openedHands[viewerSeatIdx] || null,
+        pers: tablePers.filter(p => p.playerIndex === viewerSeatIdx)
+      },
+      {
+        id: 'right',
+        title: 'Sağ Oyuncu',
+        player: rightOpponent.player,
+        seatIndex: rightOpponent.seatIndex,
+        isViewer: false,
+        isActiveTurn: turnIndex === rightOpponent.seatIndex,
+        openedInfo: openedHands[rightOpponent.seatIndex] || null,
+        pers: tablePers.filter(p => p.playerIndex === rightOpponent.seatIndex)
+      }
+    ];
+  }, [leftOpponent, topOpponent, rightOpponent, viewer, viewerSeatIdx, turnIndex, openedHands, tablePers]);
+
   // Calculate live hand stats for the persistent HUD corner widget
   const handStats = useMemo(() => {
     const hand = viewer?.hand || [];
@@ -429,99 +476,99 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
 
         {/* CENTER TABLE ARENA */}
         <div className={`table-center ${gameType === '101' ? 'mode-101' : ''}`}>
-          {/* Deck and Indicator Dock */}
-          <div className="deck-dock-bar">
-            {/* Draw Deck */}
-            <div
-              className="draw-deck-container"
-              onClick={() => isMyTurn && !hasDrawn && handleDrawTile(false)}
-              title={isMyTurn && !hasDrawn ? 'Ortadan Taş Çek' : ''}
-            >
-              <div className="draw-deck-stack">
-                <div className="deck-layer" style={{ top: 0, left: 0 }}></div>
-                <div className="deck-layer" style={{ top: -3, left: -2 }}></div>
-                <div className="deck-layer" style={{ top: -6, left: -4 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#a39879', fontWeight: 800 }}>OKEY</span>
-                  </div>
-                </div>
-              </div>
-              <span className="deck-count-badge">{remainingTiles} Taş</span>
-              {isMyTurn && !hasDrawn && (
-                <span style={{ fontSize: '0.72rem', color: '#38ef7d', fontWeight: 800, marginTop: 2, animation: 'bannerPulse 1.2s infinite' }}>
-                  👆 ÇEK
-                </span>
-              )}
-            </div>
-
-            {/* Gösterge Tile */}
-            <div style={{ display: 'flex', alignItems: 'center', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 2, textTransform: 'uppercase', fontWeight: 700 }}>
-                Gösterge
-              </span>
-              <Tile tile={indicator} okeyInfo={null} mini />
-            </div>
-            {gameType === '101' && selectedProcessTile && (
-              <div className="process-guide-pill">
-                👉 Seçilen: <strong>{selectedProcessTile.color} {selectedProcessTile.value}</strong> (İşlemek için masadaki pere tıklayın veya sürükleyin)
-              </div>
-            )}
-          </div>
-
-          {/* 101 Table Opened Pers Area: Spacious Central Felt */}
+          {/* 101 Table Opened Pers Area: Spacious 4-Quadrant Velvet Table */}
           {gameType === '101' && (
             <div className="table-felt-zone">
-              {tablePers.length === 0 ? (
-                <div className="felt-empty-open-table">
-                  <div className="felt-center-watermark">
-                    <span className="watermark-title">101 OKEY MASASI</span>
-                    <span className="watermark-sub">Açılan seriler ve çiftler masanın bu alanına yerleşecektir</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="table-pers-grid">
-                  {tablePers.map((per) => {
-                    const openerName = players[per.playerIndex]?.name || 'Oyuncu';
-                    return (
-                      <div
-                        key={per.id}
-                        className={`open-per-group ${selectedProcessTile ? 'process-target' : ''}`}
-                        onClick={() => handleProcessTileClick(per)}
-                        onDragOver={(e) => {
-                          if (isMyTurn && hasDrawn) {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'copy';
-                          }
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const tileId = e.dataTransfer.getData('application/tile-id');
-                          if (tileId && isMyTurn && hasDrawn) {
-                            network.emit('game:processTile', {
-                              roomId: gameState.roomId,
-                              tileId,
-                              targetPerId: per.id
-                            }, (res) => {
-                              if (!res.success) {
-                                alert(res.message || 'Bu taş bu pere işlenemez.');
-                              }
-                            });
-                          }
-                        }}
-                        title={selectedProcessTile ? 'Seçtiğiniz taşı bu pere işleyin' : 'Taşı bu pere sürükleyip işleyebilirsiniz'}
-                      >
-                        <span className="per-opener-label">{openerName}</span>
-                        <div style={{ display: 'flex', gap: 2 }}>
-                          {per.tiles.map((t, tidx) => (
-                            <Tile key={t.id || tidx} tile={t} okeyInfo={okeyInfo} mini />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
+              {selectedProcessTile && (
+                <div className="process-guide-banner">
+                  👉 Seçilen Taş: <strong style={{ color: '#fff' }}>{selectedProcessTile.color.toUpperCase()} {selectedProcessTile.value}</strong> — İşlemek istediğiniz pere tıklayın veya taşı o pere sürükleyin!
                 </div>
               )}
+              <div className="table-4quadrant-grid">
+                {tableQuadrants.map(quad => (
+                  <div
+                    key={quad.id}
+                    className={`table-player-quadrant ${quad.isActiveTurn ? 'is-current-turn' : ''}`}
+                  >
+                    <div className="quadrant-header">
+                      <div className="quadrant-player-info">
+                        <div className="seat-avatar" style={{ width: 26, height: 26, fontSize: '0.8rem', margin: 0 }}>
+                          {quad.player?.isBot ? <Bot size={14} /> : (quad.player?.name?.charAt(0) || '?')}
+                        </div>
+                        <strong className="quadrant-name">
+                          {quad.player?.name || 'Oyuncu'}
+                          {quad.isViewer ? ' (Siz)' : ''}
+                        </strong>
+                      </div>
+
+                      {quad.openedInfo ? (
+                        <span className="quadrant-badge opened">
+                          {quad.openedInfo.type === 'pairs'
+                            ? `🟢 ${quad.openedInfo.pairCount || 5} Çift`
+                            : `🟢 ${quad.openedInfo.points} Puan`}
+                        </span>
+                      ) : (
+                        <span className="quadrant-badge waiting">⚪ Açmadı</span>
+                      )}
+                    </div>
+
+                    <div className="quadrant-pers-container">
+                      {quad.pers.length === 0 ? (
+                        <div className="quadrant-empty-hint">
+                          Henüz per açmadı
+                        </div>
+                      ) : (
+                        quad.pers.map(per => (
+                          <div
+                            key={per.id}
+                            className={`open-per-group ${selectedProcessTile ? 'process-target' : ''}`}
+                            onClick={() => handleProcessTileClick(per)}
+                            onDragOver={(e) => {
+                              if (isMyTurn && hasDrawn) {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'copy';
+                              }
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const tileId = e.dataTransfer.getData('application/tile-id');
+                              if (tileId && isMyTurn && hasDrawn) {
+                                network.emit('game:processTile', {
+                                  roomId: gameState.roomId,
+                                  tileId,
+                                  targetPerId: per.id
+                                }, (res) => {
+                                  if (!res.success) alert(res.message || 'Bu taş bu pere işlenemez.');
+                                });
+                              }
+                            }}
+                            title={selectedProcessTile ? 'Seçtiğiniz taşı bu pere işleyin' : 'Taşı bu pere sürükleyip işleyebilirsiniz'}
+                          >
+                            <div style={{ display: 'flex', gap: 2 }}>
+                              {per.tiles.map((t, tidx) => (
+                                <Tile key={t.id || tidx} tile={t} okeyInfo={okeyInfo} mini />
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Classic Okey Felt */}
+          {gameType === 'classic' && (
+            <div className="table-felt-zone classic-felt">
+              <div className="felt-empty-open-table">
+                <div className="felt-center-watermark">
+                  <span className="watermark-title">OKEY MASASI</span>
+                  <span className="watermark-sub">Klasik Düz Okey • Elinizi tamamlayıp bitiş yapınız</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -619,6 +666,9 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           onOpenPairs101={handleOpenPairs101}
           onSelectForProcess={(tile) => setSelectedProcessTile(tile)}
           selectedTileForProcess={selectedProcessTile}
+          remainingTiles={remainingTiles}
+          indicator={indicator}
+          onDrawDeck={() => handleDrawTile(false)}
         />
       )}
 

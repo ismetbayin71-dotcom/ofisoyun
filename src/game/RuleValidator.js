@@ -469,33 +469,31 @@ export class RuleValidator {
    * Smartly organizes hand into detected runs/groups with gaps
    * Returns an array of tiles organized into logical sequences
    */
+  /**
+   * Smartly organizes hand into detected runs/groups with gaps between pers,
+   * keeping colors together and placing leftovers cleanly.
+   */
   static autoArrangeRuns(hand, okeyInfo) {
-    if (!hand || hand.length === 0) return [];
+    if (!hand || hand.length === 0) return Array(30).fill(null);
 
-    const wildcards = hand.filter(t => this.isWildOkey(t, okeyInfo));
+    const usedIds = new Set();
+    const detectedPers = [];
+
     const normals = hand.filter(t => !this.isWildOkey(t, okeyInfo));
+    const wildcards = hand.filter(t => this.isWildOkey(t, okeyInfo));
 
-    // Group by color and sort by value
-    const byColor = { red: [], blue: [], black: [], yellow: [] };
+    // 1. Natural consecutive runs of 3+ (same color)
+    const byColor = { red: [], yellow: [], blue: [], black: [] };
     for (const t of normals) {
       if (byColor[t.color]) byColor[t.color].push(t);
     }
     for (const c in byColor) {
       byColor[c].sort((a, b) => a.value - b.value);
-    }
-
-    const detectedPers = [];
-    const usedIds = new Set();
-
-    // 1. Find consecutive runs of 3+
-    for (const color of ['red', 'blue', 'black', 'yellow']) {
-      const tiles = byColor[color];
+      const tiles = byColor[c];
       let currentRun = [];
-
       for (let i = 0; i < tiles.length; i++) {
         const t = tiles[i];
         if (usedIds.has(t.id)) continue;
-
         if (currentRun.length === 0) {
           currentRun.push(t);
         } else {
@@ -503,10 +501,8 @@ export class RuleValidator {
           if (t.value === prev.value + 1) {
             currentRun.push(t);
           } else if (t.value === prev.value) {
-            // Duplicate number in same color, skip for now
-            continue;
+            continue; // duplicate number, keep in reserve
           } else {
-            // Break in sequence
             if (currentRun.length >= 3) {
               detectedPers.push([...currentRun]);
               currentRun.forEach(item => usedIds.add(item.id));
@@ -515,21 +511,33 @@ export class RuleValidator {
           }
         }
       }
-
       if (currentRun.length >= 3) {
         detectedPers.push([...currentRun]);
         currentRun.forEach(item => usedIds.add(item.id));
       }
     }
 
-    // 2. Find groups of same number, different colors
+    // 2. Wrap runs: 11-12-13-1 or 12-13-1
+    for (const c in byColor) {
+      const tiles = byColor[c].filter(t => !usedIds.has(t.id));
+      const hasOne = tiles.find(t => t.value === 1);
+      const hasThirteen = tiles.find(t => t.value === 13);
+      const hasTwelve = tiles.find(t => t.value === 12);
+      if (hasOne && hasThirteen && hasTwelve) {
+        const hasEleven = tiles.find(t => t.value === 11);
+        const wrapPer = hasEleven ? [hasEleven, hasTwelve, hasThirteen, hasOne] : [hasTwelve, hasThirteen, hasOne];
+        detectedPers.push(wrapPer);
+        wrapPer.forEach(t => usedIds.add(t.id));
+      }
+    }
+
+    // 3. Groups of same number, different colors (3 or 4)
     const byValue = {};
     for (const t of normals) {
       if (usedIds.has(t.id)) continue;
       byValue[t.value] = byValue[t.value] || [];
       byValue[t.value].push(t);
     }
-
     for (const val in byValue) {
       const list = byValue[val];
       const uniqueColors = [];
@@ -546,122 +554,213 @@ export class RuleValidator {
       }
     }
 
-    // 3. Assemble result: pack complete pers into row 1 (15 slots) and row 2 (15 slots) compactly
-    const remaining = normals.filter(t => !usedIds.has(t.id)).sort((a, b) => {
-      if (a.color === b.color) return a.value - b.value;
-      return a.color.localeCompare(b.color);
+    // 4. Wildcard runs or groups: check if any wildcard can form a 3-tile per with unused tiles
+    let wildIdx = 0;
+    while (wildIdx < wildcards.length) {
+      const wild = wildcards[wildIdx];
+      if (usedIds.has(wild.id)) {
+        wildIdx++;
+        continue;
+      }
+
+      let formed = false;
+      const unusedNormals = normals.filter(t => !usedIds.has(t.id));
+      for (let i = 0; i < unusedNormals.length && !formed; i++) {
+        for (let j = i + 1; j < unusedNormals.length && !formed; j++) {
+          const a = unusedNormals[i];
+          const b = unusedNormals[j];
+          const candidate = [a, b, wild];
+          const ordered = this.getValidRunOrder(candidate, okeyInfo);
+          if (ordered) {
+            detectedPers.push(ordered);
+            ordered.forEach(t => usedIds.add(t.id));
+            formed = true;
+            break;
+          }
+          if (this.isValidGroup(candidate, okeyInfo)) {
+            detectedPers.push(candidate);
+            candidate.forEach(t => usedIds.add(t.id));
+            formed = true;
+            break;
+          }
+        }
+      }
+      wildIdx++;
+    }
+
+    // 5. Sort pers: runs first (by color, start value), groups second (by value)
+    const colorRank = { red: 0, yellow: 1, blue: 2, black: 3 };
+    detectedPers.sort((a, b) => {
+      const aIsRun = a.length > 0 && a[0].color === a[a.length - 1].color;
+      const bIsRun = b.length > 0 && b[0].color === b[b.length - 1].color;
+      if (aIsRun && !bIsRun) return -1;
+      if (!aIsRun && bIsRun) return 1;
+      if (aIsRun && bIsRun) {
+        const rankA = colorRank[a[0].color] ?? 99;
+        const rankB = colorRank[b[0].color] ?? 99;
+        if (rankA !== rankB) return rankA - rankB;
+        return a[0].value - b[0].value;
+      }
+      return a[0].value - b[0].value;
     });
 
-    const row1 = [];
-    const row2 = [];
+    // 6. Build row1 (15 slots) and row2 (15 slots) with 1 gap between pers
+    const row1 = Array(15).fill(null);
+    const row2 = Array(15).fill(null);
 
-    // Distribute whole pers across rows without breaking any per
+    let r1Idx = 0;
+    let r2Idx = 0;
+    const remainingPers = [];
+
     for (const per of detectedPers) {
-      if (row1.length + per.length <= 15) {
-        row1.push(...per);
-      } else if (row2.length + per.length <= 15) {
-        row2.push(...per);
+      const needed = r1Idx === 0 ? per.length : (1 + per.length);
+      if (r1Idx + needed <= 15) {
+        if (r1Idx > 0) r1Idx++; // Empty slot gap
+        for (const t of per) {
+          row1[r1Idx++] = t;
+        }
       } else {
-        row1.push(...per);
+        remainingPers.push(per);
       }
     }
 
-    // Distribute wildcards and remaining tiles into unfilled space
-    const leftoversToPlace = [...wildcards, ...remaining];
-    for (const t of leftoversToPlace) {
-      if (row1.length < 15) {
-        row1.push(t);
-      } else if (row2.length < 15) {
-        row2.push(t);
-      }
-    }
-
-    const result = Array(30).fill(null);
-    row1.slice(0, 15).forEach((t, i) => { result[i] = t; });
-    row2.slice(0, 15).forEach((t, i) => { result[15 + i] = t; });
-
-    return result;
-  }
-
-  /**
-   * Smartly organizes hand into pairs (Çift Diz) compactly
-   */
-  static autoArrangePairs(hand, okeyInfo) {
-    if (!hand || hand.length === 0) return [];
-
-    const wildcards = hand.filter(t => this.isWildOkey(t, okeyInfo));
-    const normals = hand.filter(t => !this.isWildOkey(t, okeyInfo));
-
-    const pairs = [];
-    const usedIds = new Set();
-
-    // Find identical normals
-    for (let i = 0; i < normals.length; i++) {
-      const a = normals[i];
-      if (usedIds.has(a.id)) continue;
-
-      for (let j = i + 1; j < normals.length; j++) {
-        const b = normals[j];
-        if (usedIds.has(b.id)) continue;
-
-        if (a.color === b.color && a.value === b.value) {
-          pairs.push([a, b]);
-          usedIds.add(a.id);
-          usedIds.add(b.id);
-          break;
+    for (const per of remainingPers) {
+      const needed = r2Idx === 0 ? per.length : (1 + per.length);
+      if (r2Idx + needed <= 15) {
+        if (r2Idx > 0) r2Idx++; // Empty slot gap
+        for (const t of per) {
+          row2[r2Idx++] = t;
+        }
+      } else {
+        for (const t of per) {
+          if (r2Idx < 15) row2[r2Idx++] = t;
+          else if (r1Idx < 15) row1[r1Idx++] = t;
         }
       }
     }
 
-    // Pair remaining with wildcards if any
+    // 7. Leftover tiles (not in pers)
     const remainingNormals = normals.filter(t => !usedIds.has(t.id));
-    let wildIndex = 0;
-    while (wildIndex < wildcards.length && remainingNormals.length > 0) {
-      const normal = remainingNormals.shift();
-      const wild = wildcards[wildIndex++];
-      pairs.push([normal, wild]);
-      usedIds.add(normal.id);
-      usedIds.add(wild.id);
+    const remainingWildcards = wildcards.filter(t => !usedIds.has(t.id));
+
+    const colorOrder = ['red', 'yellow', 'blue', 'black'];
+    const leftoverGroups = {};
+    for (const c of colorOrder) leftoverGroups[c] = [];
+    for (const t of remainingNormals) {
+      if (leftoverGroups[t.color]) leftoverGroups[t.color].push(t);
+      else leftoverGroups[t.color] = [t];
+    }
+    for (const c of colorOrder) {
+      leftoverGroups[c].sort((a, b) => a.value - b.value);
     }
 
-    // Pair remaining wildcards with each other
-    while (wildIndex + 1 < wildcards.length) {
-      pairs.push([wildcards[wildIndex], wildcards[wildIndex + 1]]);
-      usedIds.add(wildcards[wildIndex].id);
-      usedIds.add(wildcards[wildIndex + 1].id);
-      wildIndex += 2;
+    const sortedLeftovers = [...remainingWildcards];
+    for (const c of colorOrder) {
+      sortedLeftovers.push(...leftoverGroups[c]);
     }
 
-    const leftovers = hand.filter(t => !usedIds.has(t.id)).sort((a, b) => {
-      if (a.color === b.color) return a.value - b.value;
-      return a.color.localeCompare(b.color);
+    // 8. Place leftovers
+    if (r2Idx > 0 && r2Idx < 15 && sortedLeftovers.length > 0 && (r2Idx + 1 + sortedLeftovers.length <= 15)) {
+      r2Idx++; // gap after overflowing per on row 2
+    }
+
+    let leftoverIdx = 0;
+    while (r2Idx < 15 && leftoverIdx < sortedLeftovers.length) {
+      row2[r2Idx++] = sortedLeftovers[leftoverIdx++];
+    }
+
+    if (leftoverIdx < sortedLeftovers.length) {
+      if (r1Idx > 0 && r1Idx < 14) {
+        r1Idx++; // gap after row 1 pers
+      }
+      while (r1Idx < 15 && leftoverIdx < sortedLeftovers.length) {
+        row1[r1Idx++] = sortedLeftovers[leftoverIdx++];
+      }
+    }
+
+    return [...row1, ...row2];
+  }
+
+  /**
+   * Smartly organizes hand into pairs (Çift Diz) with gaps between pairs
+   */
+  static autoArrangePairs(hand, okeyInfo) {
+    if (!hand || hand.length === 0) return Array(30).fill(null);
+
+    const { pairs } = this.find101Pairs(hand, okeyInfo);
+    const usedIds = new Set();
+    pairs.forEach(p => {
+      usedIds.add(p[0].id);
+      usedIds.add(p[1].id);
     });
 
-    const row1 = [];
-    const row2 = [];
+    const row1 = Array(15).fill(null);
+    const row2 = Array(15).fill(null);
 
+    let r1Idx = 0;
+    let r2Idx = 0;
+    const remainingPairs = [];
+
+    // Place pairs on Row 1 with 1 gap between each pair (up to 5 pairs = 14 slots)
     for (const pair of pairs) {
-      if (row1.length + 2 <= 15) {
-        row1.push(pair[0], pair[1]);
-      } else if (row2.length + 2 <= 15) {
-        row2.push(pair[0], pair[1]);
+      const needed = r1Idx === 0 ? 2 : 3;
+      if (r1Idx + needed <= 15) {
+        if (r1Idx > 0) r1Idx++; // gap
+        row1[r1Idx++] = pair[0];
+        row1[r1Idx++] = pair[1];
       } else {
-        row1.push(pair[0], pair[1]);
+        remainingPairs.push(pair);
       }
     }
 
-    for (const t of leftovers) {
-      if (row1.length < 15) {
-        row1.push(t);
-      } else if (row2.length < 15) {
-        row2.push(t);
+    for (const pair of remainingPairs) {
+      const needed = r2Idx === 0 ? 2 : 3;
+      if (r2Idx + needed <= 15) {
+        if (r2Idx > 0) r2Idx++;
+        row2[r2Idx++] = pair[0];
+        row2[r2Idx++] = pair[1];
+      } else {
+        if (r2Idx < 14) {
+          row2[r2Idx++] = pair[0];
+          row2[r2Idx++] = pair[1];
+        }
       }
     }
 
-    const result = Array(30).fill(null);
-    row1.slice(0, 15).forEach((t, i) => { result[i] = t; });
-    row2.slice(0, 15).forEach((t, i) => { result[15 + i] = t; });
+    // Leftovers
+    const wildcards = hand.filter(t => !usedIds.has(t.id) && this.isWildOkey(t, okeyInfo));
+    const normalLeftovers = hand.filter(t => !usedIds.has(t.id) && !this.isWildOkey(t, okeyInfo));
+    const colorOrder = ['red', 'yellow', 'blue', 'black'];
+    const leftoverGroups = {};
+    for (const c of colorOrder) leftoverGroups[c] = [];
+    for (const t of normalLeftovers) {
+      if (leftoverGroups[t.color]) leftoverGroups[t.color].push(t);
+      else leftoverGroups[t.color] = [t];
+    }
+    for (const c of colorOrder) {
+      leftoverGroups[c].sort((a, b) => a.value - b.value);
+    }
+    const sortedLeftovers = [...wildcards];
+    for (const c of colorOrder) {
+      sortedLeftovers.push(...leftoverGroups[c]);
+    }
 
-    return result;
+    if (r2Idx > 0 && r2Idx < 15 && sortedLeftovers.length > 0 && (r2Idx + 1 + sortedLeftovers.length <= 15)) {
+      r2Idx++;
+    }
+
+    let leftoverIdx = 0;
+    while (r2Idx < 15 && leftoverIdx < sortedLeftovers.length) {
+      row2[r2Idx++] = sortedLeftovers[leftoverIdx++];
+    }
+
+    if (leftoverIdx < sortedLeftovers.length) {
+      if (r1Idx > 0 && r1Idx < 14) r1Idx++;
+      while (r1Idx < 15 && leftoverIdx < sortedLeftovers.length) {
+        row1[r1Idx++] = sortedLeftovers[leftoverIdx++];
+      }
+    }
+
+    return [...row1, ...row2];
   }
 }
