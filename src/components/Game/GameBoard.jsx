@@ -253,7 +253,9 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
               <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
                 {!hasDrawn
                   ? 'Ortadaki desteden veya solunuzdaki oyuncudan taş çekiniz.'
-                  : 'Taşınızı çektiniz. İşe yaramayan bir taşı atın veya per açın/bitin.'}
+                  : (gameType === '101' && gameState.justDrawnFromDiscard && !viewer?.hasOpened)
+                    ? '⚠️ Yandan taş aldınız: Taş atabilmek için elinizi açmalı (101 barajı) veya masaya işlemelisiniz!'
+                    : 'Taşınızı çektiniz. İşe yaramayan bir taşı atın veya per açın/bitin.'}
               </span>
             </div>
           </div>
@@ -268,7 +270,22 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
       </div>
 
       {/* Main Board Arena */}
-      <div className="game-board-arena">
+      <div
+        className="game-board-arena"
+        onDragOver={(e) => {
+          if (isMyTurn && hasDrawn) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+          }
+        }}
+        onDrop={(e) => {
+          const tileId = e.dataTransfer.getData('application/tile-id');
+          if (tileId && isMyTurn && hasDrawn) {
+            e.preventDefault();
+            handleDiscardTile(tileId);
+          }
+        }}
+      >
         {/* TOP OPPONENT */}
         <div className="opponent-top">
           {topOpponent.player && (
@@ -373,7 +390,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
             </div>
             {gameType === '101' && selectedProcessTile && (
               <div className="process-guide-pill">
-                👉 Seçilen: <strong>{selectedProcessTile.color} {selectedProcessTile.value}</strong> (İşlemek için masadaki pere tıklayın)
+                👉 Seçilen: <strong>{selectedProcessTile.color} {selectedProcessTile.value}</strong> (İşlemek için masadaki pere tıklayın veya sürükleyin)
               </div>
             )}
           </div>
@@ -397,7 +414,29 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                         key={per.id}
                         className={`open-per-group ${selectedProcessTile ? 'process-target' : ''}`}
                         onClick={() => handleProcessTileClick(per)}
-                        title={selectedProcessTile ? 'Seçtiğiniz taşı bu pere işleyin' : ''}
+                        onDragOver={(e) => {
+                          if (isMyTurn && hasDrawn) {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'copy';
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const tileId = e.dataTransfer.getData('application/tile-id');
+                          if (tileId && isMyTurn && hasDrawn) {
+                            network.emit('game:processTile', {
+                              roomId: gameState.roomId,
+                              tileId,
+                              targetPerId: per.id
+                            }, (res) => {
+                              if (!res.success) {
+                                alert(res.message || 'Bu taş bu pere işlenemez.');
+                              }
+                            });
+                          }
+                        }}
+                        title={selectedProcessTile ? 'Seçtiğiniz taşı bu pere işleyin' : 'Taşı bu pere sürükleyip işleyebilirsiniz'}
                       >
                         <span className="per-opener-label">{openerName}</span>
                         <div style={{ display: 'flex', gap: 2 }}>
@@ -440,6 +479,50 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
               <Tile tile={getDiscardForSeat(rightOpponent.seatIndex)} okeyInfo={okeyInfo} />
             )}
           </div>
+        </div>
+
+        {/* VIEWER'S OWN DISCARD PILE (Bottom-Right: The tile thrown by viewer) */}
+        <div className="viewer-discard-container">
+          <span className="viewer-discard-label">Attığınız Taş</span>
+          <div
+            className={`discard-slot viewer-discard-slot ${isMyTurn && hasDrawn ? 'can-drop-discard' : ''}`}
+            onDragOver={(e) => {
+              if (isMyTurn && hasDrawn) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+              }
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const tileId = e.dataTransfer.getData('application/tile-id');
+              if (tileId && isMyTurn && hasDrawn) {
+                handleDiscardTile(tileId);
+              }
+            }}
+            onClick={() => {
+              if (selectedProcessTile && isMyTurn && hasDrawn) {
+                handleDiscardTile(selectedProcessTile.id);
+                setSelectedProcessTile(null);
+              }
+            }}
+            title={
+              isMyTurn && hasDrawn
+                ? 'Taş atmak için buraya sürükleyip bırakabilirsiniz'
+                : 'Attığınız son taş (Sağınızdaki oyuncu alabilir)'
+            }
+          >
+            {getDiscardForSeat(viewerSeatIdx) ? (
+              <Tile tile={getDiscardForSeat(viewerSeatIdx)} okeyInfo={okeyInfo} />
+            ) : (
+              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Boş</span>
+            )}
+          </div>
+          {isMyTurn && hasDrawn && (
+            <span style={{ fontSize: '0.72rem', color: '#e5b94c', fontWeight: 700, marginTop: 2 }}>
+              Taş Atma Yeri
+            </span>
+          )}
         </div>
       </div>
 

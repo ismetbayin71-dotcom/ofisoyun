@@ -799,12 +799,50 @@ input, select {
   transform: scale(1.05);
 }
 
+.viewer-discard-container {
+  grid-area: bottom-right;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+}
+
+.viewer-discard-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.viewer-discard-slot {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.viewer-discard-slot.can-drop-discard {
+  border: 2px dashed var(--gold-accent);
+  background: rgba(229, 185, 76, 0.12);
+  box-shadow: 0 0 16px rgba(229, 185, 76, 0.4);
+  animation: bannerPulse 1.5s infinite;
+  cursor: pointer;
+}
+
+.viewer-discard-slot.can-drop-discard:hover {
+  transform: scale(1.06);
+  border-color: #38ef7d;
+  box-shadow: 0 0 20px rgba(56, 239, 125, 0.7);
+}
+
 /* =======================================================
    TACTILE OKEY TILE STYLING
    ======================================================= */
 .tile-item {
   width: 48px;
   height: 68px;
+  max-width: 100%;
   background: var(--tile-bg-gradient);
   border-radius: 6px;
   box-shadow: var(--tile-shadow);
@@ -906,12 +944,11 @@ input, select {
    MAHOGANY WOODEN ISTAKA (TILE RACK)
    ======================================================= */
 .user-game-rack-area {
-  grid-area: bottom;
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 1100px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
@@ -937,47 +974,49 @@ input, select {
   border-left: 2px solid #3d1f10;
   border-right: 2px solid #3d1f10;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.7), inset 0 2px 4px rgba(255, 255, 255, 0.15);
-  padding: 8px 12px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  box-sizing: border-box;
 }
 
 .istaka-row {
-  display: flex;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  gap: 3px;
   min-height: 74px;
   background: rgba(0, 0, 0, 0.45);
   border-radius: 6px;
   padding: 4px 6px;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
-  overflow-x: auto;
   align-items: center;
-  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Individual Slot on the Wooden Istaka */
 .rack-slot {
-  flex: 1;
-  max-width: 56px;
-  min-width: 42px;
-  height: 68px;
+  width: 100%;
+  height: 70px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
   position: relative;
+  box-sizing: border-box;
 }
 
 .rack-slot.empty-slot {
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.2);
+  border: 1.5px dashed rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .rack-slot.empty-slot:hover {
-  background: rgba(229, 185, 76, 0.12);
-  border-color: rgba(229, 185, 76, 0.45);
+  background: rgba(229, 185, 76, 0.2);
+  border-color: rgba(229, 185, 76, 0.6);
+  box-shadow: inset 0 0 8px rgba(229, 185, 76, 0.3);
   cursor: pointer;
 }
 

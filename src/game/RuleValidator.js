@@ -546,31 +546,45 @@ export class RuleValidator {
       }
     }
 
-    // 3. Assemble result: complete pers first, then remaining tiles, then wildcards
+    // 3. Assemble result: pack complete pers into row 1 (15 slots) and row 2 (15 slots) compactly
     const remaining = normals.filter(t => !usedIds.has(t.id)).sort((a, b) => {
       if (a.color === b.color) return a.value - b.value;
       return a.color.localeCompare(b.color);
     });
 
-    const result = [];
+    const row1 = [];
+    const row2 = [];
+
+    // Distribute whole pers across rows without breaking any per
     for (const per of detectedPers) {
-      result.push(...per);
-      result.push(null); // Gap between pers!
+      if (row1.length + per.length <= 15) {
+        row1.push(...per);
+      } else if (row2.length + per.length <= 15) {
+        row2.push(...per);
+      } else {
+        row1.push(...per);
+      }
     }
 
-    if (result.length > 0 && result[result.length - 1] === null) {
-      // Keep gap
+    // Distribute wildcards and remaining tiles into unfilled space
+    const leftoversToPlace = [...wildcards, ...remaining];
+    for (const t of leftoversToPlace) {
+      if (row1.length < 15) {
+        row1.push(t);
+      } else if (row2.length < 15) {
+        row2.push(t);
+      }
     }
 
-    result.push(...wildcards);
-    if (wildcards.length > 0) result.push(null);
-    result.push(...remaining);
+    const result = Array(30).fill(null);
+    row1.slice(0, 15).forEach((t, i) => { result[i] = t; });
+    row2.slice(0, 15).forEach((t, i) => { result[15 + i] = t; });
 
     return result;
   }
 
   /**
-   * Smartly organizes hand into pairs (Çift Diz)
+   * Smartly organizes hand into pairs (Çift Diz) compactly
    */
   static autoArrangePairs(hand, okeyInfo) {
     if (!hand || hand.length === 0) return [];
@@ -623,12 +637,30 @@ export class RuleValidator {
       return a.color.localeCompare(b.color);
     });
 
-    const result = [];
+    const row1 = [];
+    const row2 = [];
+
     for (const pair of pairs) {
-      result.push(pair[0], pair[1]);
-      result.push(null); // Space between pairs
+      if (row1.length + 2 <= 15) {
+        row1.push(pair[0], pair[1]);
+      } else if (row2.length + 2 <= 15) {
+        row2.push(pair[0], pair[1]);
+      } else {
+        row1.push(pair[0], pair[1]);
+      }
     }
-    result.push(...leftovers);
+
+    for (const t of leftovers) {
+      if (row1.length < 15) {
+        row1.push(t);
+      } else if (row2.length < 15) {
+        row2.push(t);
+      }
+    }
+
+    const result = Array(30).fill(null);
+    row1.slice(0, 15).forEach((t, i) => { result[i] = t; });
+    row2.slice(0, 15).forEach((t, i) => { result[15 + i] = t; });
 
     return result;
   }

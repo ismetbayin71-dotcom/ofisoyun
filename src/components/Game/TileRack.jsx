@@ -47,16 +47,19 @@ export const TileRack = ({
     };
   }, []);
 
+  // Track hand contents via sorted ID string so any addition or removal triggers update guaranteed
+  const handKey = (hand || []).map(t => t.id).sort().join(',');
+
   // Sync with incoming hand changes (draws, discards, opens) while keeping user layout
   useEffect(() => {
     setSlots(prevSlots => {
-      const currentHandIds = new Set(hand.map(t => t.id));
-      const handMap = new Map(hand.map(t => [t.id, t]));
+      const currentHandIds = new Set((hand || []).map(t => t.id));
+      const handMap = new Map((hand || []).map(t => [t.id, t]));
       const newSlots = prevSlots.map(t => (t && currentHandIds.has(t.id) ? handMap.get(t.id) : null));
 
       // Find tiles in hand not yet placed in any slot
       const placedIds = new Set(newSlots.filter(Boolean).map(t => t.id));
-      const unplacedTiles = hand.filter(t => !placedIds.has(t.id));
+      const unplacedTiles = (hand || []).filter(t => !placedIds.has(t.id));
 
       let unplacedIdx = 0;
       for (let i = 0; i < 30 && unplacedIdx < unplacedTiles.length; i++) {
@@ -67,7 +70,7 @@ export const TileRack = ({
 
       return newSlots;
     });
-  }, [hand]);
+  }, [handKey]);
 
   // DRAG & DROP HANDLERS
   const handleDragStart = (e, slotIdx) => {
@@ -75,6 +78,7 @@ export const TileRack = ({
     setDraggedSlot(slotIdx);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', slotIdx.toString());
+    e.dataTransfer.setData('application/tile-id', slots[slotIdx].id);
   };
 
   const handleDragOver = (e) => {
@@ -108,7 +112,7 @@ export const TileRack = ({
     setSelectedSlotIndex(null);
   };
 
-  // Dropping anywhere on the wooden row (e.g. dragging to the right empty area)
+  // Dropping anywhere on a row - accurately calculates column 0 to 14
   const handleRowDrop = (e, rowIndex) => {
     e.preventDefault();
     e.stopPropagation();
@@ -122,19 +126,12 @@ export const TileRack = ({
       return;
     }
 
-    const startIdx = rowIndex * 15;
-    const endIdx = startIdx + 14;
-
-    // Find the rightmost empty slot on this row
-    let targetIdx = -1;
-    for (let i = endIdx; i >= startIdx; i--) {
-      if (!slots[i]) {
-        targetIdx = i;
-        break;
-      }
-    }
-    // If no slot is empty, target the last slot of that row
-    if (targetIdx === -1) targetIdx = endIdx;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scrollLeft = e.currentTarget.scrollLeft || 0;
+    const relativeX = (e.clientX - rect.left) + scrollLeft;
+    const slotWidth = rect.width / 15;
+    const slotCol = Math.max(0, Math.min(14, Math.floor(relativeX / slotWidth)));
+    const targetIdx = rowIndex * 15 + slotCol;
 
     if (targetIdx === sourceSlot) {
       setDraggedSlot(null);
@@ -228,14 +225,21 @@ export const TileRack = ({
     }
   };
 
+  // Optimistic Discard
+  const handleDiscardAction = (tileId) => {
+    sound.playTileClick();
+    onDiscard(tileId);
+    // Remove immediately from rack slots so user never sees discarded tile stuck in hand
+    setSlots(prev => prev.map(t => (t && t.id === tileId ? null : t)));
+    setSelectedSlotIndex(null);
+    setSelectedFor101Ids([]);
+  };
+
   // Fast-discard on double click
   const handleDoubleClick = (slotIdx) => {
     const tile = slots[slotIdx];
     if (tile && isMyTurn && hasDrawn) {
-      sound.playTileClick();
-      onDiscard(tile.id);
-      setSelectedSlotIndex(null);
-      setSelectedFor101Ids([]);
+      handleDiscardAction(tile.id);
     }
   };
 
@@ -243,11 +247,7 @@ export const TileRack = ({
   const handleAutoArrangeRuns = () => {
     sound.playTileClick();
     const arranged = RuleValidator.autoArrangeRuns(hand, okeyInfo);
-    const newSlots = Array(30).fill(null);
-    arranged.forEach((item, idx) => {
-      if (idx < 30) newSlots[idx] = item;
-    });
-    setSlots(newSlots);
+    setSlots(arranged);
     setSelectedSlotIndex(null);
     setSelectedFor101Ids([]);
   };
@@ -256,11 +256,7 @@ export const TileRack = ({
   const handleAutoArrangePairs = () => {
     sound.playTileClick();
     const arranged = RuleValidator.autoArrangePairs(hand, okeyInfo);
-    const newSlots = Array(30).fill(null);
-    arranged.forEach((item, idx) => {
-      if (idx < 30) newSlots[idx] = item;
-    });
-    setSlots(newSlots);
+    setSlots(arranged);
     setSelectedSlotIndex(null);
     setSelectedFor101Ids([]);
   };
@@ -408,7 +404,7 @@ export const TileRack = ({
           <button
             className="btn-secondary"
             onClick={handleAutoArrangeRuns}
-            title="Taşları renk serilerine ve gruplarına göre ıstakaya diz"
+            title="Taşları serilerine ve gruplarına göre ıstakaya diz"
           >
             <Sparkles size={15} style={{ marginRight: 4 }} />
             Seri Diz
@@ -478,11 +474,7 @@ export const TileRack = ({
               <button
                 className="btn-secondary"
                 style={{ borderColor: '#ef4444', color: '#f87171', fontWeight: 700 }}
-                onClick={() => {
-                  onDiscard(selectedTileToDiscard.id);
-                  setSelectedSlotIndex(null);
-                  setSelectedFor101Ids([]);
-                }}
+                onClick={() => handleDiscardAction(selectedTileToDiscard.id)}
               >
                 <ArrowDownCircle size={15} style={{ marginRight: 4 }} />
                 Taşı At
@@ -518,7 +510,17 @@ export const TileRack = ({
       </div>
 
       {/* Realistic 2-Row Wooden Istaka (Slot-Based, 15 slots per row) */}
-      <div className="wood-istaka">
+      <div
+        className="wood-istaka"
+        onDragOver={handleDragOver}
+        onDrop={(e) => {
+          e.preventDefault();
+          const rect = e.currentTarget.getBoundingClientRect();
+          const relativeY = e.clientY - rect.top;
+          const rowIndex = relativeY < rect.height / 2 ? 0 : 1;
+          handleRowDrop(e, rowIndex);
+        }}
+      >
         {/* Row 1 (Slots 0 to 14) */}
         <div
           className="istaka-row"

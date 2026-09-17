@@ -148,14 +148,20 @@ class P2PNetwork {
 
       case 'game:drawTile': {
         if (!this.localRoom.game) return;
-        this.localRoom.game.drawTile(conn.peer, data.fromDiscard);
+        const res = this.localRoom.game.drawTile(conn.peer, data.fromDiscard);
+        if (!res.success && res.message) {
+          conn.send({ type: 'game:action_error', message: res.message });
+        }
         this.broadcastState();
         break;
       }
 
       case 'game:discardTile': {
         if (!this.localRoom.game) return;
-        this.localRoom.game.discardTile(conn.peer, data.tileId, data.isFinishing);
+        const res = this.localRoom.game.discardTile(conn.peer, data.tileId, data.isFinishing);
+        if (!res.success && res.message) {
+          conn.send({ type: 'game:action_error', message: res.message });
+        }
         this.broadcastState();
         this.localRoom.checkBotTurn(() => this.broadcastState());
         break;
@@ -163,21 +169,30 @@ class P2PNetwork {
 
       case 'game:openRuns': {
         if (!this.localRoom.game) return;
-        this.localRoom.game.openRunsHand(conn.peer, data.pers);
+        const res = this.localRoom.game.openRunsHand(conn.peer, data.pers);
+        if (!res.success && res.message) {
+          conn.send({ type: 'game:action_error', message: res.message });
+        }
         this.broadcastState();
         break;
       }
 
       case 'game:openPairs': {
         if (!this.localRoom.game) return;
-        this.localRoom.game.openPairsHand(conn.peer, data.pairs);
+        const res = this.localRoom.game.openPairsHand(conn.peer, data.pairs);
+        if (!res.success && res.message) {
+          conn.send({ type: 'game:action_error', message: res.message });
+        }
         this.broadcastState();
         break;
       }
 
       case 'game:processTile': {
         if (!this.localRoom.game) return;
-        this.localRoom.game.processTile(conn.peer, data.tileId, data.targetPerId);
+        const res = this.localRoom.game.processTile(conn.peer, data.tileId, data.targetPerId);
+        if (!res.success && res.message) {
+          conn.send({ type: 'game:action_error', message: res.message });
+        }
         this.broadcastState();
         break;
       }
@@ -200,6 +215,8 @@ class P2PNetwork {
       this.emitLocal('room:state', data.state);
     } else if (data.type === 'game:state') {
       this.emitLocal('game:state', data.state);
+    } else if (data.type === 'game:action_error') {
+      alert(data.message);
     }
   }
 

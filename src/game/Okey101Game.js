@@ -93,7 +93,7 @@ export class Okey101Game {
       }
     }
 
-    this.players[pIdx].hand.push(drawnTile);
+    this.players[pIdx].hand = [...this.players[pIdx].hand, drawnTile];
     this.hasDrawn = true;
     this.lastAction = {
       type: 'DRAW_TILE',
@@ -246,6 +246,22 @@ export class Okey101Game {
       return { success: false, message: 'Hedef per masada bulunamadı.' };
     }
 
+    // 101 Rule: A player who opened pairs CANNOT process onto runs/groups!
+    if (this.openedHands[pIdx].type === 'pairs') {
+      return {
+        success: false,
+        message: '101 Kuralı: Çift açan oyuncular serilere taş işleyemez! Sadece açılmış çiftlere işleme yapabilirsiniz.'
+      };
+    }
+
+    // 101 Rule: A player who opened runs CANNOT process onto pairs!
+    if (this.openedHands[pIdx].type === 'runs' && targetPer.isPair) {
+      return {
+        success: false,
+        message: '101 Kuralı: Seri açan oyuncular çiftlere taş işleyemez!'
+      };
+    }
+
     const tile = player.hand[tileIndex];
     const canProcess = RuleValidator.canProcessTile(tile, targetPer.tiles, this.okeyInfo);
 
@@ -254,7 +270,7 @@ export class Okey101Game {
     }
 
     targetPer.tiles = canProcess.newPer;
-    player.hand.splice(tileIndex, 1);
+    player.hand = player.hand.filter((_, idx) => idx !== tileIndex);
 
     this.lastAction = {
       type: 'TILE_PROCESSED',
@@ -279,11 +295,12 @@ export class Okey101Game {
     if (this.justDrawnFromDiscard && !this.openedHands[pIdx]) {
       return {
         success: false,
-        message: 'Yandan taş aldıysanız elinizi açmak veya masaya işlemek zorundasınız!'
+        message: '101 Kuralı: Yandan taş aldıysanız aynı turda elinizi açmak (en az 101 barajı) veya masaya işlemek zorundasınız!'
       };
     }
 
-    const [discardedTile] = player.hand.splice(tileIndex, 1);
+    const discardedTile = player.hand[tileIndex];
+    player.hand = player.hand.filter((_, idx) => idx !== tileIndex);
     this.discardPiles[pIdx].push(discardedTile);
     this.hasDrawn = false;
     this.justDrawnFromDiscard = false;
@@ -423,7 +440,7 @@ export class Okey101Game {
           isBot: p.isBot,
           hasOpened: !!this.openedHands[idx],
           tileCount: p.hand ? p.hand.length : 0,
-          hand: (isViewer || this.status === 'round_ended') ? p.hand : null
+          hand: (isViewer || this.status === 'round_ended') ? [...p.hand] : null
         };
       })
     };

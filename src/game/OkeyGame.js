@@ -109,7 +109,7 @@ export class OkeyGame {
       }
     }
 
-    this.players[pIdx].hand.push(drawnTile);
+    this.players[pIdx].hand = [...this.players[pIdx].hand, drawnTile];
     this.hasDrawn = true;
     this.lastAction = {
       type: 'DRAW_TILE',
@@ -134,7 +134,8 @@ export class OkeyGame {
       return { success: false, message: 'Taş elinizde bulunamadı.' };
     }
 
-    const [discardedTile] = player.hand.splice(tileIndex, 1);
+    const discardedTile = player.hand[tileIndex];
+    player.hand = player.hand.filter((_, idx) => idx !== tileIndex);
 
     if (isFinishing) {
       const remainingHand = player.hand;
@@ -231,7 +232,7 @@ export class OkeyGame {
           seat: idx,
           isBot: p.isBot,
           tileCount: p.hand ? p.hand.length : 0,
-          hand: (isViewer || this.status === 'round_ended') ? p.hand : null
+          hand: (isViewer || this.status === 'round_ended') ? [...p.hand] : null
         };
       })
     };
