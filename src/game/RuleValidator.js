@@ -135,6 +135,88 @@ export class RuleValidator {
   }
 
   /**
+   * Intelligently determines if a set of tiles can form a valid run (including wildcards and wrap),
+   * and returns the tiles in their canonical sequence order, or null if invalid.
+   */
+  static getValidRunOrder(tiles, okeyInfo) {
+    if (!tiles || tiles.length < 3 || tiles.length > 13) return null;
+
+    const wildcards = tiles.filter(t => this.isWildOkey(t, okeyInfo));
+    const normals = tiles.filter(t => !this.isWildOkey(t, okeyInfo));
+
+    // If there are normals, all normals must have the exact same color
+    if (normals.length > 0) {
+      const color = normals[0].color;
+      for (const t of normals) {
+        if (t.color !== color) return null;
+      }
+      // No duplicate values among normals in the same run
+      const valSet = new Set();
+      for (const t of normals) {
+        if (valSet.has(t.value)) return null;
+        valSet.add(t.value);
+      }
+    }
+
+    const L = tiles.length;
+    const candidatePatterns = [];
+
+    // 1. Wrap run ending with 1: e.g. [11, 12, 13, 1] or [12, 13, 1]
+    const wrapPattern = [];
+    for (let k = 0; k < L - 1; k++) {
+      wrapPattern.push(13 - (L - 2) + k);
+    }
+    wrapPattern.push(1);
+    if (wrapPattern[0] >= 1) {
+      candidatePatterns.push(wrapPattern);
+    }
+
+    // 2. Standard consecutive runs: e.g. [1, 2, 3] to [11, 12, 13]
+    for (let startVal = 1; startVal <= 14 - L; startVal++) {
+      const pat = [];
+      for (let k = 0; k < L; k++) pat.push(startVal + k);
+      candidatePatterns.push(pat);
+    }
+
+    // Test each candidate pattern against the non-wild tiles
+    for (const pat of candidatePatterns) {
+      let possible = true;
+      const normalMap = new Map();
+      for (const t of normals) {
+        const idx = pat.indexOf(t.value);
+        if (idx === -1 || normalMap.has(idx)) {
+          possible = false;
+          break;
+        }
+        normalMap.set(idx, t);
+      }
+
+      if (possible) {
+        const result = new Array(L);
+        let wildIdx = 0;
+        for (let i = 0; i < L; i++) {
+          if (normalMap.has(i)) {
+            result[i] = normalMap.get(i);
+          } else {
+            if (wildIdx < wildcards.length) {
+              result[i] = wildcards[wildIdx++];
+            } else {
+              possible = false;
+              break;
+            }
+          }
+        }
+
+        if (possible && this.isValidRun(result, okeyInfo)) {
+          return result;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Scans a collection of tiles and finds non-overlapping valid pers (runs/groups)
    * that maximize the total 101 point score.
    */
@@ -152,19 +234,14 @@ export class RuleValidator {
             tiles: [...current],
             pts: this.getPerPoints(current, okeyInfo)
           });
-        } else if (this.isValidRunPermutation(current, okeyInfo)) {
-          // Sort run into canonical order
-          const sorted = [...current].sort((a, b) => a.value - b.value);
-          const hasOne = sorted.find(t => t.value === 1 && !this.isWildOkey(t, okeyInfo));
-          let orderedRun = sorted;
-          if (hasOne && !this.isValidRun(sorted, okeyInfo)) {
-            const rest = sorted.filter(t => t !== hasOne);
-            orderedRun = [...rest, hasOne];
+        } else {
+          const orderedRun = this.getValidRunOrder(current, okeyInfo);
+          if (orderedRun) {
+            candidatePers.push({
+              tiles: orderedRun,
+              pts: this.getPerPoints(orderedRun, okeyInfo)
+            });
           }
-          candidatePers.push({
-            tiles: orderedRun,
-            pts: this.getPerPoints(orderedRun, okeyInfo)
-          });
         }
         return;
       }
@@ -360,17 +437,7 @@ export class RuleValidator {
   }
 
   static isValidRunPermutation(tiles, okeyInfo) {
-    if (tiles.length < 3) return false;
-    const sorted = [...tiles].sort((a, b) => a.value - b.value);
-    if (this.isValidRun(sorted, okeyInfo)) return true;
-
-    const hasOne = sorted.find(t => t.value === 1 && !this.isWildOkey(t, okeyInfo));
-    if (hasOne) {
-      const rest = sorted.filter(t => t !== hasOne);
-      if (this.isValidRun([...rest, hasOne], okeyInfo)) return true;
-    }
-
-    return false;
+    return this.getValidRunOrder(tiles, okeyInfo) !== null;
   }
 
   static canProcessTile(tile, openPer, okeyInfo) {

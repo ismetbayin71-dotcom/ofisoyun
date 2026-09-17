@@ -371,23 +371,22 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
               </span>
               <Tile tile={indicator} okeyInfo={null} mini />
             </div>
+            {gameType === '101' && selectedProcessTile && (
+              <div className="process-guide-pill">
+                👉 Seçilen: <strong>{selectedProcessTile.color} {selectedProcessTile.value}</strong> (İşlemek için masadaki pere tıklayın)
+              </div>
+            )}
           </div>
 
           {/* 101 Table Opened Pers Area: Spacious Central Felt */}
           {gameType === '101' && (
             <div className="table-felt-zone">
-              <div className="felt-zone-header">
-                <span>MASAYA AÇILAN PERLER</span>
-                {selectedProcessTile && (
-                  <span style={{ color: '#38ef7d', fontWeight: 700, animation: 'bannerPulse 1.2s infinite' }}>
-                    👉 Seçtiğiniz ({selectedProcessTile.color} {selectedProcessTile.value}) taşını işlemek için pere tıklayın!
-                  </span>
-                )}
-              </div>
-
               {tablePers.length === 0 ? (
-                <div className="felt-empty-notice">
-                  Henüz masaya per açan olmadı. 101 puan barajını geçen oyuncuların açtığı perler burada görüntülenecektir.
+                <div className="felt-empty-open-table">
+                  <div className="felt-center-watermark">
+                    <span className="watermark-title">101 OKEY MASASI</span>
+                    <span className="watermark-sub">Açılan seriler ve çiftler masanın bu alanına yerleşecektir</span>
+                  </div>
                 </div>
               ) : (
                 <div className="table-pers-grid">
@@ -452,7 +451,10 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           isMyTurn={isMyTurn}
           hasDrawn={hasDrawn}
           gameType={gameType}
+          hasOpened={!!viewer?.hasOpened}
           minRequiredPoints={minRequiredPoints}
+          totalHandPoints={handStats.totalPoints}
+          bestPersPoints={handStats.bestPersPoints}
           onDiscard={handleDiscardTile}
           onFinishClassic={handleFinishClassic}
           onOpenRuns101={handleOpenRuns101}
@@ -465,41 +467,53 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
       {/* PERSISTENT SCORE & HAND STATUS CORNER HUD */}
       {viewer && (
         <div className="hud-corner-card">
-          <div className="hud-corner-title">EL DURUMUNUZ</div>
+          <div className="hud-corner-title">👑 EL DURUMU & PUAN</div>
           <div className="hud-corner-row">
             <span>Eldeki Taş:</span>
             <strong>{handStats.tileCount} adet</strong>
           </div>
           <div className="hud-corner-row">
             <span>Toplam Taş Puanı:</span>
-            <strong>{handStats.totalPoints} puan</strong>
+            <strong style={{ fontSize: '1rem', color: '#e5b94c' }}>{handStats.totalPoints} puan</strong>
           </div>
 
           {gameType === '101' && (
             <>
               <div className="hud-corner-row">
                 <span>Açılabilir Seri:</span>
-                <strong style={{ color: canOpenRuns ? '#38ef7d' : '#f87171' }}>
+                <strong style={{ color: canOpenRuns ? '#38ef7d' : '#f87171', fontWeight: 800 }}>
                   {handStats.bestPersPoints} / {minRequiredPoints}
                 </strong>
               </div>
               <div className="hud-corner-row">
                 <span>Açılabilir Çift:</span>
-                <strong style={{ color: canOpenPairs ? '#38ef7d' : '#f87171' }}>
+                <strong style={{ color: canOpenPairs ? '#38ef7d' : '#f87171', fontWeight: 800 }}>
                   {handStats.pairCount} / 5 çift
                 </strong>
               </div>
 
-              <div style={{ marginTop: 6 }}>
-                {canOpenRuns ? (
-                  <span className="hud-badge-ready">🟢 101 Barajı Geçildi ({handStats.bestPersPoints} Puan)</span>
+              <div style={{ marginTop: 8 }}>
+                {viewer?.hasOpened ? (
+                  <span className="hud-badge-ready">🟢 Masaya Açtınız (İşleme Yapabilirsiniz)</span>
+                ) : canOpenRuns ? (
+                  <span className="hud-badge-ready">🟢 101 Barajı Aşıldı ({handStats.bestPersPoints} Puan - Açabilirsiniz!)</span>
                 ) : canOpenPairs ? (
-                  <span className="hud-badge-ready">🟢 5 Çift Hazır ({handStats.pairCount} Çift)</span>
+                  <span className="hud-badge-ready">🟢 5 Çift Hazır ({handStats.pairCount} Çift - Açabilirsiniz!)</span>
                 ) : (
-                  <span className="hud-badge-wait">🔴 101 İçin {minRequiredPoints - handStats.bestPersPoints} Puan Lazım</span>
+                  <span className="hud-badge-wait">🔴 101 İçin {minRequiredPoints - handStats.bestPersPoints} Puan Eksik</span>
                 )}
               </div>
             </>
+          )}
+
+          {gameType === 'classic' && (
+            <div style={{ marginTop: 6 }}>
+              <span className="hud-badge-ready" style={{ fontSize: '0.72rem' }}>
+                {RuleValidator.checkClassicWin(viewer?.hand || [], okeyInfo).win
+                  ? '🟢 BİTİŞE UYGUN (Okey Bit Yapabilirsiniz)'
+                  : 'Serilerinizi veya Çiftlerinizi tamamlayınız'}
+              </span>
+            </div>
           )}
         </div>
       )}

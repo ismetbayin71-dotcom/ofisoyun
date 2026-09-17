@@ -587,102 +587,143 @@ input, select {
   color: var(--text-muted);
 }
 
-/* 101 SPILLED OPEN PERS CENTER ZONE (Spacious Green Felt) */
+/* 101 SPILLED OPEN PERS CENTER ZONE (Authentic Spacious Green Velvet Table) */
 .table-felt-zone {
   flex: 1;
   width: 100%;
-  max-width: 800px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 2px dashed rgba(229, 185, 76, 0.25);
-  border-radius: 18px;
-  padding: 12px 16px;
+  max-width: 960px;
+  background: radial-gradient(circle at center, rgba(16, 54, 34, 0.95) 0%, rgba(8, 28, 18, 0.98) 100%);
+  border: 2px solid rgba(229, 185, 76, 0.2);
+  border-radius: 20px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  max-height: 240px;
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+  min-height: 180px;
+  max-height: 280px;
+  box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.8), 0 8px 24px rgba(0, 0, 0, 0.5);
+  position: relative;
 }
 
-.felt-zone-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: var(--gold-accent);
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.felt-empty-notice {
+.felt-empty-open-table {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 0.85rem;
-  padding: 20px;
+  min-height: 140px;
+}
+
+.felt-center-watermark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.28;
+  pointer-events: none;
+  user-select: none;
+}
+
+.watermark-title {
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--gold-accent);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.watermark-sub {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  margin-top: 4px;
 }
 
 .table-pers-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
 .open-per-group {
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.07);
-  padding: 6px 8px;
-  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 6px 10px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
   transition: all 0.2s;
 }
 
 .per-opener-label {
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: 800;
   color: var(--gold-accent);
   margin-bottom: 4px;
+  letter-spacing: 0.4px;
 }
 
 .open-per-group.process-target {
   cursor: pointer;
   border-color: #38ef7d;
-  box-shadow: 0 0 12px rgba(56, 239, 125, 0.6);
-  background: rgba(56, 239, 125, 0.12);
+  box-shadow: 0 0 16px rgba(56, 239, 125, 0.7);
+  background: rgba(56, 239, 125, 0.15);
+  transform: translateY(-2px);
 }
 
 .open-per-group.process-target:hover {
-  transform: scale(1.04);
+  transform: scale(1.05);
+  border-color: #6ee7b7;
 }
 
-/* PERSISTENT SCORE HUD WIDGET IN CORNER */
+.process-guide-pill {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  color: #34d399;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  animation: bannerPulse 1.4s infinite;
+}
+
+.rack-live-stats-pill {
+  background: rgba(229, 185, 76, 0.12);
+  border: 1px solid rgba(229, 185, 76, 0.35);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+}
+
+/* PERSISTENT SCORE HUD WIDGET IN CORNER (Fixed at Top-Left) */
 .hud-corner-card {
   position: fixed;
-  left: 20px;
-  bottom: 20px;
-  background: rgba(14, 28, 20, 0.95);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(229, 185, 76, 0.35);
+  left: 18px;
+  top: 64px;
+  background: rgba(12, 26, 18, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(229, 185, 76, 0.45);
   border-radius: 16px;
   padding: 12px 18px;
-  min-width: 220px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
-  z-index: 90;
-  pointer-events: none;
+  min-width: 230px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 15px rgba(229, 185, 76, 0.15);
+  z-index: 95;
+  pointer-events: auto;
+  transition: transform 0.2s;
+}
+
+.hud-corner-card:hover {
+  transform: scale(1.02);
 }
 
 .hud-corner-title {
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-size: 0.78rem;
+  font-weight: 900;
   color: var(--gold-accent);
   letter-spacing: 0.8px;
   text-transform: uppercase;
@@ -695,9 +736,9 @@ input, select {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
 .hud-corner-row strong {
@@ -706,24 +747,24 @@ input, select {
 
 .hud-badge-ready {
   display: block;
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.25);
   border: 1px solid #10b981;
   color: #34d399;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 3px 8px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 4px 10px;
   border-radius: 8px;
   text-align: center;
 }
 
 .hud-badge-wait {
   display: block;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
   color: #fca5a5;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 3px 8px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 4px 10px;
   border-radius: 8px;
   text-align: center;
 }
@@ -917,31 +958,33 @@ input, select {
 
 /* Individual Slot on the Wooden Istaka */
 .rack-slot {
-  width: 48px;
+  flex: 1;
+  max-width: 56px;
+  min-width: 42px;
   height: 68px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
   transition: all 0.15s ease;
   position: relative;
 }
 
 .rack-slot.empty-slot {
-  border: 1px dashed rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.15);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .rack-slot.empty-slot:hover {
-  background: rgba(229, 185, 76, 0.1);
-  border-color: rgba(229, 185, 76, 0.3);
+  background: rgba(229, 185, 76, 0.12);
+  border-color: rgba(229, 185, 76, 0.45);
   cursor: pointer;
 }
 
 .rack-slot.dragging {
-  opacity: 0.4;
-  transform: scale(0.95);
+  transform: scale(0.96);
+  box-shadow: inset 0 0 0 2px rgba(229, 185, 76, 0.7);
+  /* Never set opacity: 0.4 so tiles never get stuck gray! */
 }
 
 /* PROMINENT TURN ALERT BANNER */

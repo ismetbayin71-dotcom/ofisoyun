@@ -109,7 +109,8 @@ export class Okey101Game {
       return { success: false, message: 'Sıra sizde değil veya taş çekilmedi.' };
     }
 
-    const minRequired = this.options.folded ? this.highestOpenedPoints : 101;
+    const alreadyOpened = !!this.openedHands[pIdx];
+    const minRequired = alreadyOpened ? 0 : (this.options.folded ? this.highestOpenedPoints : 101);
     const validation = RuleValidator.validate101Opening(pers, this.okeyInfo, minRequired);
 
     if (!validation.valid) {
@@ -138,19 +139,26 @@ export class Okey101Game {
       this.tablePers.push(perEntry);
     }
 
-    this.openedHands[pIdx] = {
-      type: 'runs',
-      points: validation.points
-    };
+    if (!alreadyOpened) {
+      this.openedHands[pIdx] = {
+        type: 'runs',
+        points: validation.points
+      };
 
-    if (this.options.folded && validation.points > this.highestOpenedPoints) {
-      this.highestOpenedPoints = validation.points + 1;
+      if (this.options.folded && validation.points > this.highestOpenedPoints) {
+        this.highestOpenedPoints = validation.points + 1;
+      }
+
+      this.lastAction = {
+        type: 'HAND_OPENED',
+        message: `${player.name} ${validation.points} puanla el açtı!`
+      };
+    } else {
+      this.lastAction = {
+        type: 'PER_OPENED',
+        message: `${player.name} masaya yeni per açtı.`
+      };
     }
-
-    this.lastAction = {
-      type: 'HAND_OPENED',
-      message: `${player.name} ${validation.points} puanla el açtı!`
-    };
 
     return { success: true, points: validation.points };
   }
@@ -161,9 +169,15 @@ export class Okey101Game {
       return { success: false, message: 'Sıra sizde değil veya taş çekilmedi.' };
     }
 
-    const validation = RuleValidator.validate101Pairs(pairs, this.okeyInfo);
-    if (!validation.valid) {
-      return { success: false, message: validation.reason };
+    const alreadyOpened = !!this.openedHands[pIdx];
+    const minPairs = alreadyOpened ? 1 : 5;
+    if (!pairs || pairs.length < minPairs) {
+      return { success: false, message: alreadyOpened ? 'En az 1 çift seçmelisiniz.' : 'Çift açmak için en az 5 çift gereklidir.' };
+    }
+    for (const pair of pairs) {
+      if (pair.length !== 2 || !RuleValidator.isPair(pair[0], pair[1], this.okeyInfo)) {
+        return { success: false, message: 'Geçersiz çift bulundu.' };
+      }
     }
 
     const player = this.players[pIdx];
@@ -188,15 +202,25 @@ export class Okey101Game {
       });
     }
 
-    this.openedHands[pIdx] = {
-      type: 'pairs',
-      pairCount: pairs.length
-    };
+    if (!alreadyOpened) {
+      this.openedHands[pIdx] = {
+        type: 'pairs',
+        pairCount: pairs.length
+      };
 
-    this.lastAction = {
-      type: 'PAIRS_OPENED',
-      message: `${player.name} 5 çift ile el açtı!`
-    };
+      this.lastAction = {
+        type: 'PAIRS_OPENED',
+        message: `${player.name} 5 çift ile el açtı!`
+      };
+    } else {
+      if (this.openedHands[pIdx]) {
+        this.openedHands[pIdx].pairCount = (this.openedHands[pIdx].pairCount || 0) + pairs.length;
+      }
+      this.lastAction = {
+        type: 'PAIR_OPENED',
+        message: `${player.name} masaya yeni çift açtı.`
+      };
+    }
 
     return { success: true };
   }

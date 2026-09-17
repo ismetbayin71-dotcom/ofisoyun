@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Tile } from './Tile.jsx';
 import { RuleValidator } from '../../game/RuleValidator.js';
 import { sound } from '../../utils/soundEffects.js';
-import { Sparkles, CheckCircle, ArrowDownCircle, Trophy, Split, Layers } from 'lucide-react';
+import { Sparkles, CheckCircle, ArrowDownCircle, Trophy, Split, Layers, PlayCircle } from 'lucide-react';
 
 export const TileRack = ({
   hand = [],
@@ -10,7 +10,10 @@ export const TileRack = ({
   isMyTurn,
   hasDrawn,
   gameType,
+  hasOpened = false,
   minRequiredPoints = 101,
+  totalHandPoints = 0,
+  bestPersPoints = 0,
   onDiscard,
   onFinishClassic,
   onOpenRuns101,
@@ -30,6 +33,19 @@ export const TileRack = ({
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(null);
   const [selectedFor101Ids, setSelectedFor101Ids] = useState([]);
   const [draggedSlot, setDraggedSlot] = useState(null);
+
+  // Global drag-end safety listener: Prevents any tile from getting stuck in gray/dragging state
+  useEffect(() => {
+    const handleGlobalDragEnd = () => {
+      setDraggedSlot(null);
+    };
+    window.addEventListener('dragend', handleGlobalDragEnd);
+    window.addEventListener('mouseup', handleGlobalDragEnd);
+    return () => {
+      window.removeEventListener('dragend', handleGlobalDragEnd);
+      window.removeEventListener('mouseup', handleGlobalDragEnd);
+    };
+  }, []);
 
   // Sync with incoming hand changes (draws, discards, opens) while keeping user layout
   useEffect(() => {
@@ -53,7 +69,7 @@ export const TileRack = ({
     });
   }, [hand]);
 
-  // DRAG & DROP HANDLERS (Works across slots, tiles, and rows)
+  // DRAG & DROP HANDLERS
   const handleDragStart = (e, slotIdx) => {
     if (!slots[slotIdx]) return;
     setDraggedSlot(slotIdx);
@@ -70,7 +86,11 @@ export const TileRack = ({
     e.preventDefault();
     e.stopPropagation();
 
-    if (draggedSlot === null || draggedSlot === targetSlotIdx) {
+    const dataSlotStr = e.dataTransfer.getData('text/plain');
+    const parsedSlot = dataSlotStr !== '' ? parseInt(dataSlotStr, 10) : null;
+    const sourceSlot = draggedSlot !== null ? draggedSlot : (!isNaN(parsedSlot) ? parsedSlot : null);
+
+    if (sourceSlot === null || sourceSlot === targetSlotIdx) {
       setDraggedSlot(null);
       return;
     }
@@ -78,9 +98,55 @@ export const TileRack = ({
     sound.playTileClick();
     setSlots(prev => {
       const copy = [...prev];
-      const temp = copy[draggedSlot];
-      copy[draggedSlot] = copy[targetSlotIdx];
+      const temp = copy[sourceSlot];
+      copy[sourceSlot] = copy[targetSlotIdx];
       copy[targetSlotIdx] = temp;
+      return copy;
+    });
+
+    setDraggedSlot(null);
+    setSelectedSlotIndex(null);
+  };
+
+  // Dropping anywhere on the wooden row (e.g. dragging to the right empty area)
+  const handleRowDrop = (e, rowIndex) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const dataSlotStr = e.dataTransfer.getData('text/plain');
+    const parsedSlot = dataSlotStr !== '' ? parseInt(dataSlotStr, 10) : null;
+    const sourceSlot = draggedSlot !== null ? draggedSlot : (!isNaN(parsedSlot) ? parsedSlot : null);
+
+    if (sourceSlot === null) {
+      setDraggedSlot(null);
+      return;
+    }
+
+    const startIdx = rowIndex * 15;
+    const endIdx = startIdx + 14;
+
+    // Find the rightmost empty slot on this row
+    let targetIdx = -1;
+    for (let i = endIdx; i >= startIdx; i--) {
+      if (!slots[i]) {
+        targetIdx = i;
+        break;
+      }
+    }
+    // If no slot is empty, target the last slot of that row
+    if (targetIdx === -1) targetIdx = endIdx;
+
+    if (targetIdx === sourceSlot) {
+      setDraggedSlot(null);
+      return;
+    }
+
+    sound.playTileClick();
+    setSlots(prev => {
+      const copy = [...prev];
+      const temp = copy[sourceSlot];
+      copy[sourceSlot] = copy[targetIdx];
+      copy[targetIdx] = temp;
       return copy;
     });
 
@@ -96,31 +162,59 @@ export const TileRack = ({
   const handleSlotClick = (slotIdx) => {
     const tile = slots[slotIdx];
 
-    if (gameType === '101') {
-      // 101 multi-select for per opening or processing
-      if (tile) {
+    // If an empty slot is clicked: Move the currently selected tile there!
+    if (!tile) {
+      if (selectedSlotIndex !== null && slots[selectedSlotIndex]) {
         sound.playTileClick();
-        if (selectedFor101Ids.includes(tile.id)) {
-          setSelectedFor101Ids(selectedFor101Ids.filter(id => id !== tile.id));
-        } else {
-          setSelectedFor101Ids([...selectedFor101Ids, tile.id]);
-        }
-        if (onSelectForProcess) onSelectForProcess(tile);
+        setSlots(prev => {
+          const copy = [...prev];
+          copy[slotIdx] = copy[selectedSlotIndex];
+          copy[selectedSlotIndex] = null;
+          return copy;
+        });
+        setSelectedSlotIndex(null);
+        setSelectedFor101Ids([]);
+        return;
       }
+      if (gameType === '101' && selectedFor101Ids.length === 1) {
+        const sourceIdx = slots.findIndex(t => t && t.id === selectedFor101Ids[0]);
+        if (sourceIdx !== -1) {
+          sound.playTileClick();
+          setSlots(prev => {
+            const copy = [...prev];
+            copy[slotIdx] = copy[sourceIdx];
+            copy[sourceIdx] = null;
+            return copy;
+          });
+          setSelectedFor101Ids([]);
+          setSelectedSlotIndex(null);
+          return;
+        }
+      }
+      return;
+    }
+
+    // If a tile is clicked in 101:
+    if (gameType === '101') {
+      sound.playTileClick();
+      setSelectedSlotIndex(slotIdx);
+      if (selectedFor101Ids.includes(tile.id)) {
+        setSelectedFor101Ids(selectedFor101Ids.filter(id => id !== tile.id));
+      } else {
+        setSelectedFor101Ids([...selectedFor101Ids, tile.id]);
+      }
+      if (onSelectForProcess) onSelectForProcess(tile);
       return;
     }
 
     // Classic Okey: Click-to-Move or Select for Discard
     if (selectedSlotIndex === null) {
-      if (tile) {
-        sound.playTileClick();
-        setSelectedSlotIndex(slotIdx);
-      }
+      sound.playTileClick();
+      setSelectedSlotIndex(slotIdx);
     } else {
       if (selectedSlotIndex === slotIdx) {
         setSelectedSlotIndex(null);
       } else {
-        // Move or swap to this slot
         sound.playTileClick();
         setSlots(prev => {
           const copy = [...prev];
@@ -171,38 +265,95 @@ export const TileRack = ({
     setSelectedFor101Ids([]);
   };
 
-  // 101 OPEN RUNS ACTION (Intelligent Per Detection & Validation)
-  const handleOpen101RunsClick = () => {
+  // 101 AUTO OPEN RUNS (Entire Hand Scan)
+  const handleAutoOpen101Runs = () => {
     if (!isMyTurn || !hasDrawn) {
       alert('Önce ortadan veya yandan taş çekmelisiniz!');
       return;
     }
 
-    // If user specifically selected tiles, evaluate those selected tiles
-    // If no tiles are selected, evaluate the entire hand!
-    const tilesToScan = selectedFor101Ids.length >= 3
-      ? hand.filter(t => selectedFor101Ids.includes(t.id))
-      : hand;
-
-    const { pers, totalPoints } = RuleValidator.findBest101Pers(tilesToScan, okeyInfo);
+    const { pers, totalPoints } = RuleValidator.findBest101Pers(hand, okeyInfo);
 
     if (pers.length === 0) {
-      alert('Seçtiğiniz taşlar geçerli bir seri (en az 3 ardışık aynı renk) veya grup (en az 3 farklı renk aynı sayı) oluşturmuyor!');
+      alert('Elinizde geçerli bir seri veya grup bulunmuyor.');
       return;
     }
 
-    if (totalPoints < minRequiredPoints) {
+    const minRequired = hasOpened ? 0 : minRequiredPoints;
+    if (totalPoints < minRequired) {
       alert(
-        `Açılabilen geçerli perlerinizin toplamı ${totalPoints} puan ediyor.\n` +
-        `101 barajı için en az ${minRequiredPoints} puan gereklidir (${minRequiredPoints - totalPoints} puan eksik).`
+        `Elinizdeki geçerli perlerin toplamı ${totalPoints} puan ediyor.\n` +
+        `101 barajı için en az ${minRequired} puan gereklidir (${minRequired - totalPoints} puan eksik).`
       );
       return;
     }
 
-    // We have valid pers meeting the threshold!
     sound.playTileClick();
     onOpenRuns101(pers);
     setSelectedFor101Ids([]);
+    setSelectedSlotIndex(null);
+  };
+
+  // 101 OPEN SELECTED TILES
+  const handleOpenSelected101 = () => {
+    if (!isMyTurn || !hasDrawn) {
+      alert('Önce taş çekmelisiniz!');
+      return;
+    }
+
+    const selectedTiles = hand.filter(t => selectedFor101Ids.includes(t.id));
+    if (selectedTiles.length < 3) {
+      alert('Açmak istediğiniz en az 3 taşı ıstakadan seçiniz.');
+      return;
+    }
+
+    // Evaluate selected tiles
+    const { pers, totalPoints } = RuleValidator.findBest101Pers(selectedTiles, okeyInfo);
+
+    if (pers.length === 0) {
+      alert('Seçtiğiniz taşlar geçerli bir seri (aynı renk ardışık en az 3 taş) veya grup (aynı sayı farklı renk en az 3 taş) oluşturmuyor!');
+      return;
+    }
+
+    if (hasOpened) {
+      // Already opened earlier: can open any valid per!
+      sound.playTileClick();
+      onOpenRuns101(pers);
+      setSelectedFor101Ids([]);
+      setSelectedSlotIndex(null);
+      return;
+    }
+
+    // Has NOT opened yet: must reach 101 threshold
+    if (totalPoints >= minRequiredPoints) {
+      sound.playTileClick();
+      onOpenRuns101(pers);
+      setSelectedFor101Ids([]);
+      setSelectedSlotIndex(null);
+      return;
+    }
+
+    // Selected tiles < 101: Check if whole hand reaches 101
+    const handScan = RuleValidator.findBest101Pers(hand, okeyInfo);
+    if (handScan.totalPoints >= minRequiredPoints) {
+      const confirmOpenAll = window.confirm(
+        `Seçtiğiniz perler ${totalPoints} puan ediyor. İlk açılışta en az ${minRequiredPoints} puan açılmalıdır.\n\n` +
+        `Elinizdeki diğer perlerle birlikte toplam ${handScan.totalPoints} puan ile 101 barajını geçebilirsiniz.\n\n` +
+        `Tüm geçerli perleriniz masaya açılsın mı?`
+      );
+      if (confirmOpenAll) {
+        sound.playTileClick();
+        onOpenRuns101(handScan.pers);
+        setSelectedFor101Ids([]);
+        setSelectedSlotIndex(null);
+      }
+    } else {
+      alert(
+        `Seçtiğiniz taşlar ${totalPoints} puan ediyor.\n` +
+        `101 barajı için en az ${minRequiredPoints} puan gereklidir (${minRequiredPoints - totalPoints} puan eksik).\n\n` +
+        `Elinizdeki tüm perler bile şu an ${handScan.totalPoints} puan etmektedir. Henüz el açamazsınız.`
+      );
+    }
   };
 
   // 101 OPEN PAIRS ACTION
@@ -212,11 +363,23 @@ export const TileRack = ({
       return;
     }
 
-    const tilesToScan = selectedFor101Ids.length >= 10
+    const tilesToScan = selectedFor101Ids.length >= 2
       ? hand.filter(t => selectedFor101Ids.includes(t.id))
       : hand;
 
     const { pairs, pairCount } = RuleValidator.find101Pairs(tilesToScan, okeyInfo);
+
+    if (hasOpened) {
+      if (pairs.length === 0) {
+        alert('Seçtiğiniz taşlar arasında çift bulunamadı.');
+        return;
+      }
+      sound.playTileClick();
+      onOpenPairs101([pairs[0]]);
+      setSelectedFor101Ids([]);
+      setSelectedSlotIndex(null);
+      return;
+    }
 
     if (pairCount < 5) {
       alert(`Çift açmak için en az 5 çift (10 taş) gereklidir. Şu an elinizde ${pairCount} çift var.`);
@@ -226,6 +389,7 @@ export const TileRack = ({
     sound.playTileClick();
     onOpenPairs101(pairs.slice(0, 5));
     setSelectedFor101Ids([]);
+    setSelectedSlotIndex(null);
   };
 
   // Live selected tiles details for 101
@@ -263,21 +427,35 @@ export const TileRack = ({
         {/* 101 Action controls */}
         {gameType === '101' && (
           <div className="rack-actions-group">
+            {/* Live Point Indicator in Bar */}
+            <div className="rack-live-stats-pill">
+              <span>Elde: <strong>{totalHandPoints} Puan</strong></span>
+              <span style={{ margin: '0 4px', opacity: 0.5 }}>|</span>
+              <span>Açılabilir: <strong style={{ color: bestPersPoints >= minRequiredPoints ? '#38ef7d' : '#f87171' }}>{bestPersPoints}/{minRequiredPoints}</strong></span>
+            </div>
+
             {selected101Tiles.length > 0 && (
-              <span style={{ fontSize: '0.85rem', color: '#e5b94c', alignSelf: 'center', fontWeight: 700 }}>
-                Seçilen: {selected101Tiles.length} Taş ({selected101Points} Puan)
-              </span>
+              <button
+                className="btn-primary"
+                disabled={!isMyTurn || !hasDrawn}
+                style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', borderColor: '#34d399' }}
+                onClick={handleOpenSelected101}
+                title="Seçtiğiniz taşları masaya açın"
+              >
+                <CheckCircle size={15} style={{ marginRight: 4 }} />
+                Seçilenleri Aç ({selected101Points} Puan)
+              </button>
             )}
 
             <button
               className="btn-primary"
               disabled={!isMyTurn || !hasDrawn}
               style={{ opacity: (!isMyTurn || !hasDrawn) ? 0.5 : 1 }}
-              onClick={handleOpen101RunsClick}
-              title="Perleri masaya aç (101 barajı)"
+              onClick={handleAutoOpen101Runs}
+              title={hasOpened ? 'Elinizdeki yeni perleri masaya aç' : 'Tüm elinizdeki perleri masaya aç (101 barajı)'}
             >
-              <CheckCircle size={15} style={{ marginRight: 4 }} />
-              Seri Aç (101 Barajı)
+              <PlayCircle size={15} style={{ marginRight: 4 }} />
+              {hasOpened ? 'Yeni Per Aç' : 'Otomatik Seri Aç (101)'}
             </button>
 
             <button
@@ -285,10 +463,10 @@ export const TileRack = ({
               disabled={!isMyTurn || !hasDrawn}
               style={{ opacity: (!isMyTurn || !hasDrawn) ? 0.5 : 1, borderColor: '#38ef7d', color: '#38ef7d' }}
               onClick={handleOpen101PairsClick}
-              title="En az 5 çift aç"
+              title={hasOpened ? 'Çift aç' : 'En az 5 çift aç'}
             >
               <Layers size={15} style={{ marginRight: 4 }} />
-              Çift Aç (5 Çift)
+              {hasOpened ? 'Çift Aç' : 'Çift Aç (5 Çift)'}
             </button>
           </div>
         )}
@@ -303,6 +481,7 @@ export const TileRack = ({
                 onClick={() => {
                   onDiscard(selectedTileToDiscard.id);
                   setSelectedSlotIndex(null);
+                  setSelectedFor101Ids([]);
                 }}
               >
                 <ArrowDownCircle size={15} style={{ marginRight: 4 }} />
@@ -341,7 +520,11 @@ export const TileRack = ({
       {/* Realistic 2-Row Wooden Istaka (Slot-Based, 15 slots per row) */}
       <div className="wood-istaka">
         {/* Row 1 (Slots 0 to 14) */}
-        <div className="istaka-row">
+        <div
+          className="istaka-row"
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleRowDrop(e, 0)}
+        >
           {slots.slice(0, 15).map((tile, i) => {
             const slotIdx = i;
             const isSelected =
@@ -376,7 +559,11 @@ export const TileRack = ({
         </div>
 
         {/* Row 2 (Slots 15 to 29) */}
-        <div className="istaka-row">
+        <div
+          className="istaka-row"
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleRowDrop(e, 1)}
+        >
           {slots.slice(15, 30).map((tile, i) => {
             const slotIdx = 15 + i;
             const isSelected =
