@@ -953,6 +953,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           remainingTiles={remainingTiles}
           indicator={indicator}
           onDrawDeck={() => handleDrawTile(false)}
+          tablePers={tablePers}
         />
       )}
 

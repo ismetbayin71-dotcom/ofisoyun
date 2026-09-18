@@ -621,13 +621,13 @@ input, select {
   width: 100%;
   max-width: 1060px;
   background: radial-gradient(circle at center, rgba(16, 54, 34, 0.95) 0%, rgba(8, 28, 18, 0.98) 100%);
-  border: 2px solid rgba(229, 185, 76, 0.25);
+  border: 2px solid rgba(229, 185, 76, 0.3);
   border-radius: 20px;
-  padding: 10px 14px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  min-height: 160px;
+  min-height: 220px;
   max-height: 100%;
   box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.85), 0 8px 24px rgba(0, 0, 0, 0.55);
   position: relative;
@@ -641,8 +641,8 @@ input, select {
 }
 
 .table-felt-zone.classic-felt {
-  min-height: 160px;
-  max-height: 240px;
+  min-height: 200px;
+  max-height: 280px;
 }
 
 /* 101 Table 4-Quadrant Player Grid */
@@ -660,10 +660,10 @@ input, select {
   background: rgba(0, 0, 0, 0.45);
   border: 1.5px solid rgba(229, 185, 76, 0.2);
   border-radius: 12px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  min-height: 90px;
+  min-height: 120px;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
   transition: all 0.2s ease;
   overflow: visible;
@@ -1000,11 +1000,11 @@ input, select {
    TACTILE OKEY TILE STYLING
    ======================================================= */
 .tile-item {
-  width: 48px;
-  height: 68px;
+  width: 58px;
+  height: 82px;
   max-width: 100%;
   background: var(--tile-bg-gradient);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: var(--tile-shadow);
   display: flex;
   flex-direction: column;
@@ -1044,34 +1044,56 @@ input, select {
 }
 
 .tile-item.mini {
-  width: 32px;
-  height: 46px;
+  width: 38px;
+  height: 54px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.4);
 }
 
 .tile-number {
-  font-size: 1.65rem;
-  font-weight: 800;
+  font-size: 1.9rem;
+  font-weight: 900;
   line-height: 1;
   letter-spacing: -1px;
 }
 
 .tile-item.mini .tile-number {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
 }
 
 /* Dot below number for tactile realism */
 .tile-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   margin-top: 3px;
 }
 
 .tile-item.mini .tile-dot {
-  width: 3px;
-  height: 3px;
+  width: 4px;
+  height: 4px;
   margin-top: 1px;
+}
+
+/* Useful/Playable tile highlight */
+@keyframes usefulGlow {
+  0%   { box-shadow: var(--tile-shadow), 0 0 0 0 rgba(56, 239, 125, 0); }
+  50%  { box-shadow: var(--tile-shadow), 0 0 14px 4px rgba(56, 239, 125, 0.55); }
+  100% { box-shadow: var(--tile-shadow), 0 0 0 0 rgba(56, 239, 125, 0); }
+}
+
+.tile-item.is-useful {
+  outline: 2px solid rgba(56, 239, 125, 0.85);
+  animation: usefulGlow 2.2s ease-in-out infinite;
+}
+
+.tile-item.is-useful::after {
+  content: '⚡';
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: 0.55rem;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
 }
 
 /* Tile Colors */
@@ -1099,6 +1121,13 @@ input, select {
 }
 .tile-yellow .tile-dot { background-color: var(--tile-yellow); }
 
+/* Sahte Okey tile rengi - mor/lila gradient */
+.tile-none {
+  background: linear-gradient(160deg, #2d1b4e 0%, #1e1035 60%, #150b28 100%) !important;
+  border: 1.5px solid rgba(167, 139, 250, 0.5) !important;
+  box-shadow: var(--tile-shadow), 0 0 12px rgba(139, 92, 246, 0.4) !important;
+}
+
 /* Star icon badge on Okey tile */
 .okey-wildcard-star {
   position: absolute;
@@ -1107,6 +1136,37 @@ input, select {
   font-size: 0.65rem;
   color: var(--gold-accent);
   filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
+}
+
+/* Sahte Okey yıldız badge */
+.fake-joker-star {
+  font-size: 2.2rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.9));
+  animation: fakeJokerPulse 2s ease-in-out infinite;
+}
+
+.tile-item.mini .fake-joker-star {
+  font-size: 1.5rem;
+}
+
+@keyframes fakeJokerPulse {
+  0%   { filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.7)); }
+  50%  { filter: drop-shadow(0 0 12px rgba(167, 139, 250, 1)); }
+  100% { filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.7)); }
+}
+
+.fake-joker-label {
+  font-size: 0.5rem;
+  font-weight: 900;
+  color: #a78bfa;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-top: -2px;
+}
+
+.tile-item.mini .fake-joker-label {
+  font-size: 0.42rem;
 }
 
 .fake-joker-icon {
@@ -1268,11 +1328,11 @@ input, select {
 .istaka-row {
   display: grid;
   grid-template-columns: repeat(15, minmax(0, 1fr));
-  gap: 3px;
-  min-height: 74px;
+  gap: 4px;
+  min-height: 92px;
   background: rgba(0, 0, 0, 0.45);
   border-radius: 6px;
-  padding: 4px 6px;
+  padding: 5px 8px;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
   align-items: center;
   width: 100%;
@@ -1282,7 +1342,7 @@ input, select {
 /* Individual Slot on the Wooden Istaka */
 .rack-slot {
   width: 100%;
-  height: 70px;
+  height: 88px;
   border-radius: 6px;
   display: flex;
   align-items: center;

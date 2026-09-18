@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Tile } from './Tile.jsx';
 import { RuleValidator } from '../../game/RuleValidator.js';
 import { sound } from '../../utils/soundEffects.js';
-import { Sparkles, CheckCircle, ArrowDownCircle, Trophy, Split, Layers, PlayCircle } from 'lucide-react';
+import { Sparkles, CheckCircle, ArrowDownCircle, Trophy, Split, Layers, PlayCircle, Zap } from 'lucide-react';
 
 export const TileRack = ({
   hand = [],
@@ -27,7 +27,9 @@ export const TileRack = ({
   selectedTileForProcess,
   remainingTiles = 0,
   indicator = null,
-  onDrawDeck
+  onDrawDeck,
+  tablePers = [],
+  showUseful = true,
 }) => {
   // 30-slot authentic Okey rack (15 top, 15 bottom)
   const [slots, setSlots] = useState(() => {
@@ -469,6 +471,45 @@ export const TileRack = ({
     ? slots[selectedSlotIndex]
     : (selectedFor101Ids.length === 1 ? hand.find(t => t.id === selectedFor101Ids[0]) : null);
 
+  // Useful tile detection: tiles that can be processed onto table pers
+  const usefulTileIds = useMemo(() => {
+    if (!showUseful || !hasOpened || tablePers.length === 0) return new Set();
+    const ids = new Set();
+    hand.forEach(tile => {
+      const canProcess = tablePers.some(per =>
+        !per.isPair && RuleValidator.canProcessTile(tile, per.tiles, okeyInfo)
+      );
+      if (canProcess) ids.add(tile.id);
+    });
+    return ids;
+  }, [hand, tablePers, okeyInfo, hasOpened, showUseful]);
+
+  // Auto process: find first useful tile and emit processTile
+  const handleAutoProcess = () => {
+    if (!isMyTurn || !hasDrawn) {
+      alert('Önce taş çekmelisiniz!');
+      return;
+    }
+    if (!hasOpened) {
+      alert('Önce elinizi açmalısınız!');
+      return;
+    }
+    for (const tile of hand) {
+      for (const per of tablePers) {
+        if (!per.isPair && RuleValidator.canProcessTile(tile, per.tiles, okeyInfo)) {
+          sound.playTileClick();
+          // Emit via onSelectForProcess + a custom event, or use a direct network call prop
+          // We'll select the tile for process highlighting
+          if (onSelectForProcess) onSelectForProcess(tile);
+          setSelectedFor101Ids([tile.id]);
+          setSelectedSlotIndex(slots.findIndex(s => s && s.id === tile.id));
+          return;
+        }
+      }
+    }
+    alert('İşlenebilecek uygun taş bulunamadı.');
+  };
+
   return (
     <div className="user-game-rack-area">
       {/* Rack Action Bar */}
@@ -547,6 +588,25 @@ export const TileRack = ({
               {hasOpened ? 'Yeni Per Aç' : 'Otomatik Seri Aç (101)'}
             </button>
 
+            {/* Otomatik İşle: masadaki perler için uygun taş bul ve seç */}
+            {hasOpened && usefulTileIds.size > 0 && (
+              <button
+                className="btn-primary"
+                disabled={!isMyTurn || !hasDrawn}
+                style={{
+                  background: 'linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)',
+                  borderColor: '#c4b5fd',
+                  opacity: (!isMyTurn || !hasDrawn) ? 0.5 : 1,
+                  fontWeight: 800,
+                }}
+                onClick={handleAutoProcess}
+                title="Masadaki perlerden birine otomatik işlenebilecek taşı seçer"
+              >
+                <Zap size={15} style={{ marginRight: 4 }} />
+                Otomatik İşle ({usefulTileIds.size})
+              </button>
+            )}
+
             {hasOpened && openedType === 'runs' ? (
               <button
                 className="btn-secondary"
@@ -554,7 +614,8 @@ export const TileRack = ({
                 style={{
                   opacity: (!isMyTurn || !hasDrawn || !hasPairOpenerOnTable || allPairsInHand.length === 0) ? 0.5 : 1,
                   borderColor: '#60a5fa',
-                  color: '#93c5fd'
+                  color: '#93c5fd',
+                  fontWeight: 800,
                 }}
                 onClick={handleOpen101PairsClick}
                 title={
@@ -574,7 +635,7 @@ export const TileRack = ({
               <button
                 className="btn-secondary"
                 disabled={!isMyTurn || !hasDrawn}
-                style={{ opacity: (!isMyTurn || !hasDrawn) ? 0.5 : 1, borderColor: '#38ef7d', color: '#38ef7d' }}
+                style={{ opacity: (!isMyTurn || !hasDrawn) ? 0.5 : 1, borderColor: '#38ef7d', color: '#38ef7d', fontWeight: 800 }}
                 onClick={handleOpen101PairsClick}
                 title={hasOpened ? 'Çift aç' : 'En az 5 çift aç'}
               >
@@ -723,6 +784,7 @@ export const TileRack = ({
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, slotIdx)}
                       onDragEnd={handleDragEnd}
+                      isUseful={usefulTileIds.has(tile.id)}
                       className={isNewlyDrawn ? 'newly-drawn' : ''}
                     />
                   )}
@@ -764,6 +826,7 @@ export const TileRack = ({
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, slotIdx)}
                       onDragEnd={handleDragEnd}
+                      isUseful={usefulTileIds.has(tile.id)}
                       className={isNewlyDrawn ? 'newly-drawn' : ''}
                     />
                   )}

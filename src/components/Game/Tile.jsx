@@ -12,7 +12,8 @@ export const Tile = ({
   onDragStart,
   onDragOver,
   onDrop,
-  onDragEnd
+  onDragEnd,
+  isUseful = false,
 }) => {
   if (!tile) return null;
 
@@ -22,11 +23,11 @@ export const Tile = ({
     tile.color === okeyInfo.color &&
     tile.value === okeyInfo.value;
 
-  const colorClass = `tile-${tile.color || 'none'}`;
+  const colorClass = tile.isFakeJoker ? 'tile-none' : `tile-${tile.color || 'none'}`;
 
   return (
     <div
-      className={`tile-item ${colorClass} ${selected ? 'selected' : ''} ${mini ? 'mini' : ''} ${className}`}
+      className={`tile-item ${colorClass} ${selected ? 'selected' : ''} ${mini ? 'mini' : ''} ${isUseful ? 'is-useful' : ''} ${className}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       draggable={draggable}
@@ -34,18 +35,16 @@ export const Tile = ({
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
-      title={isWildOkey ? 'Okey (Joker)' : `${tile.color} ${tile.value}`}
+      title={tile.isFakeJoker ? 'Sahte Okey (Joker ★)' : isWildOkey ? 'Okey (Joker)' : `${tile.color} ${tile.value}`}
     >
       {/* Wildcard Okey Star Badge */}
       {isWildOkey && <span className="okey-wildcard-star" style={{ pointerEvents: 'none' }}>★</span>}
 
-      {/* Sahte Okey Badge */}
+      {/* Sahte Okey: Yıldız göster */}
       {tile.isFakeJoker ? (
-        <div className="fake-joker-container" style={{ textAlign: 'center', pointerEvents: 'none' }}>
-          <div className="tile-number">{tile.value}</div>
-          <div style={{ fontSize: mini ? '7px' : '9px', fontWeight: 700, color: 'inherit', opacity: 0.85 }}>
-            SAHTE
-          </div>
+        <div style={{ textAlign: 'center', pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <span className="fake-joker-star">★</span>
+          <span className="fake-joker-label">SAHTE</span>
         </div>
       ) : (
         <div style={{ pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
