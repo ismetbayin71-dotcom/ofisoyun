@@ -569,7 +569,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         <div className="opponent-top">
           <div className="discard-slot opponent-top-discard">
             {getDiscardForSeat(topOpponent.seatIndex) && (
-              <Tile tile={getDiscardForSeat(topOpponent.seatIndex)} okeyInfo={okeyInfo} mini />
+              <Tile tile={getDiscardForSeat(topOpponent.seatIndex)} okeyInfo={okeyInfo} />
             )}
           </div>
 

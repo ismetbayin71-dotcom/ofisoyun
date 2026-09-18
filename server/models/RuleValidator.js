@@ -324,26 +324,102 @@ export class RuleValidator {
   static canProcessTile(tile, openPer, okeyInfo, gameType = '101') {
     if (!tile || !openPer || openPer.length === 0) return null;
 
-    // Check if openPer is a group (same value, different colors)
+    const isOkey = (t) => this.isWildOkey(t, okeyInfo);
+
+    // 1. Group check (Same number, distinct colors)
     if (this.isValidGroup(openPer, okeyInfo)) {
-      if (openPer.length >= 4) return null;
-      const test = [...openPer, tile];
-      if (this.isValidGroup(test, okeyInfo)) {
-        return { type: 'group', newPer: test };
+      const nonWild = openPer.filter(t => !isOkey(t));
+      if (nonWild.length > 0) {
+        const baseVal = nonWild[0].value;
+        if (tile.value === baseVal) {
+          const usedColors = new Set(nonWild.map(t => t.color));
+          if (!usedColors.has(tile.color)) {
+            const okeyIndices = [];
+            for (let i = 0; i < openPer.length; i++) {
+              if (isOkey(openPer[i])) okeyIndices.push(i);
+            }
+
+            // Case A: Group already has 4 tiles (3 normal + 1 Okey)
+            // Adding the 4th color replaces Okey and returns the Okey to the player!
+            if (openPer.length === 4 && okeyIndices.length >= 1) {
+              const newPer = [...openPer];
+              const replaceIdx = okeyIndices[0];
+              const takenOkey = newPer[replaceIdx];
+              newPer[replaceIdx] = tile;
+              if (this.isValidGroup(newPer, okeyInfo)) {
+                return { type: 'group-replace-okey', newPer, takenOkey };
+              }
+            }
+
+            // Case B: Group has < 4 tiles (e.g. 2 normal + 1 Okey, or 3 normal)
+            // Adding another color extends group; Okey stays in the per
+            if (openPer.length < 4) {
+              const test = [...openPer, tile];
+              if (this.isValidGroup(test, okeyInfo)) {
+                return { type: 'group-extend', newPer: test, takenOkey: null };
+              }
+            }
+          }
+        }
       }
     }
 
-    // Check if openPer is a run (consecutive numbers, same color)
+    // 2. Run check (Consecutive numbers, same color)
     if (this.isValidRun(openPer, okeyInfo, gameType)) {
-      // Can we prepend?
-      const prepend = [tile, ...openPer];
-      if (this.isValidRun(prepend, okeyInfo, gameType)) {
-        return { type: 'run-prepend', newPer: prepend };
-      }
-      // Can we append?
-      const append = [...openPer, tile];
-      if (this.isValidRun(append, okeyInfo, gameType)) {
-        return { type: 'run-append', newPer: append };
+      const nonWild = openPer.filter(t => !isOkey(t));
+      if (nonWild.length > 0) {
+        const baseColor = nonWild[0].color;
+        if (tile.color === baseColor) {
+          // Find run's start value
+          let validStartVal = null;
+          for (let s = 1; s <= 14 - openPer.length; s++) {
+            let ok = true;
+            for (let i = 0; i < openPer.length; i++) {
+              const t = openPer[i];
+              if (!isOkey(t) && t.value !== s + i) {
+                ok = false;
+                break;
+              }
+            }
+            if (ok) {
+              validStartVal = s;
+              break;
+            }
+          }
+
+          if (validStartVal !== null) {
+            // Priority A: Check if tile can replace an Okey inside the run and take it
+            for (let i = 0; i < openPer.length; i++) {
+              if (isOkey(openPer[i])) {
+                const neededVal = validStartVal + i;
+                if (tile.value === neededVal) {
+                  const newPer = [...openPer];
+                  const takenOkey = newPer[i];
+                  newPer[i] = tile;
+                  if (this.isValidRun(newPer, okeyInfo, gameType)) {
+                    return { type: 'run-replace-okey', newPer, takenOkey };
+                  }
+                }
+              }
+            }
+
+            // Priority B: Can we prepend to the run?
+            if (tile.value === validStartVal - 1 && tile.value >= 1) {
+              const prepend = [tile, ...openPer];
+              if (this.isValidRun(prepend, okeyInfo, gameType)) {
+                return { type: 'run-prepend', newPer: prepend, takenOkey: null };
+              }
+            }
+
+            // Priority C: Can we append to the run?
+            if (tile.value === validStartVal + openPer.length && tile.value <= 13) {
+              const append = [...openPer, tile];
+              if (this.isValidRun(append, okeyInfo, gameType)) {
+                return { type: 'run-append', newPer: append, takenOkey: null };
+              }
+            }
+          }
+        }
       }
     }
 

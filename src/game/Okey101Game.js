@@ -500,12 +500,19 @@ export class Okey101Game {
     targetPer.tiles = canProcess.newPer;
     player.hand = player.hand.filter((_, idx) => idx !== tileIndex);
 
+    let message = `${player.name} masadaki pere taş işledi.`;
+    if (canProcess.takenOkey) {
+      player.hand.push(canProcess.takenOkey);
+      message = `🌟 ${player.name} perdeki OKEY'in yerine taş işleyip OKEY'i eline aldı!`;
+    }
+
     this.lastAction = {
       type: 'TILE_PROCESSED',
-      message: `${player.name} masadaki pere taş işledi.`
+      message,
+      takenOkey: !!canProcess.takenOkey
     };
 
-    return { success: true, updatedPer: targetPer };
+    return { success: true, updatedPer: targetPer, takenOkey: canProcess.takenOkey };
   }
 
   discardTile(playerId, tileId) {
