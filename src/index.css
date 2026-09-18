@@ -445,15 +445,15 @@ input, select {
   min-height: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  grid-template-columns: 240px 1fr 240px;
+  grid-template-columns: 200px 1fr 200px;
   grid-template-areas:
     "top-left top top-right"
     "left center right"
     "bottom-left bottom bottom-right";
-  padding: 6px 20px 2px;
+  padding: 4px 16px 2px;
   gap: 8px;
   position: relative;
-  max-width: 1600px;
+  max-width: 1680px;
   margin: 0 auto;
   width: 100%;
   overflow: hidden;
@@ -619,25 +619,30 @@ input, select {
 .table-felt-zone {
   flex: 1;
   width: 100%;
-  max-width: 1060px;
+  max-width: 1220px;
   background: radial-gradient(circle at center, rgba(16, 54, 34, 0.95) 0%, rgba(8, 28, 18, 0.98) 100%);
-  border: 2px solid rgba(229, 185, 76, 0.3);
-  border-radius: 20px;
-  padding: 12px 16px;
+  border: 2px solid rgba(229, 185, 76, 0.35);
+  border-radius: 18px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  min-height: 220px;
+  min-height: 250px;
   max-height: 100%;
   box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.85), 0 8px 24px rgba(0, 0, 0, 0.55);
   position: relative;
   box-sizing: border-box;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(229, 185, 76, 0.3) transparent;
 }
 
 .table-felt-zone::-webkit-scrollbar {
-  display: none;
+  width: 4px;
+}
+
+.table-felt-zone::-webkit-scrollbar-thumb {
+  background: rgba(229, 185, 76, 0.3);
+  border-radius: 4px;
 }
 
 .table-felt-zone.classic-felt {
@@ -650,7 +655,7 @@ input, select {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   height: 100%;
   flex: 1;
@@ -659,14 +664,14 @@ input, select {
 .table-player-quadrant {
   background: rgba(0, 0, 0, 0.45);
   border: 1.5px solid rgba(229, 185, 76, 0.2);
-  border-radius: 12px;
-  padding: 8px 12px;
+  border-radius: 10px;
+  padding: 6px 10px;
   display: flex;
   flex-direction: column;
-  min-height: 120px;
+  min-height: 110px;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
   transition: all 0.2s ease;
-  overflow: visible;
+  overflow: hidden;
   box-sizing: border-box;
 }
 
@@ -688,9 +693,10 @@ input, select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 5px;
-  margin-bottom: 6px;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
 }
 
 .quadrant-player-info {
@@ -700,16 +706,16 @@ input, select {
 }
 
 .quadrant-name {
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   font-weight: 800;
   color: #fff;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
 }
 
 .quadrant-badge {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 800;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 9999px;
   letter-spacing: 0.2px;
 }
@@ -729,18 +735,24 @@ input, select {
 .quadrant-pers-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 5px;
   align-items: flex-start;
   align-content: flex-start;
   overflow-y: auto;
   flex: 1;
-  min-height: 100px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  min-height: 70px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(229, 185, 76, 0.35) transparent;
+  padding-right: 2px;
 }
 
 .quadrant-pers-container::-webkit-scrollbar {
-  display: none;
+  width: 4px;
+}
+
+.quadrant-pers-container::-webkit-scrollbar-thumb {
+  background: rgba(229, 185, 76, 0.35);
+  border-radius: 4px;
 }
 
 .quadrant-empty-hint {
@@ -749,7 +761,7 @@ input, select {
   justify-content: center;
   width: 100%;
   height: 100%;
-  min-height: 80px;
+  min-height: 60px;
   color: rgba(255, 255, 255, 0.28);
   font-size: 0.78rem;
   font-style: italic;
@@ -806,12 +818,13 @@ input, select {
 .open-per-group {
   display: flex;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.45);
-  padding: 4px 6px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
+  padding: 2px 4px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .open-per-group.process-target {
@@ -825,6 +838,51 @@ input, select {
 .open-per-group.process-target:hover {
   transform: scale(1.05);
   border-color: #6ee7b7;
+}
+
+/* Compact tiles inside center table opened pers (Quadrant Pers) */
+.quadrant-pers-container .tile-item {
+  width: 25px !important;
+  height: 36px !important;
+  border-radius: 4px !important;
+  border-bottom-width: 2px !important;
+  box-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.4) !important;
+  padding: 0 !important;
+}
+
+.quadrant-pers-container .tile-item .tile-number {
+  font-size: 0.95rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.5px !important;
+}
+
+.quadrant-pers-container .tile-item .tile-dot {
+  width: 3px !important;
+  height: 3px !important;
+  margin-top: 1px !important;
+}
+
+.quadrant-pers-container .tile-item .okey-wildcard-star {
+  font-size: 0.45rem !important;
+  top: 1px !important;
+  right: 1px !important;
+}
+
+.quadrant-pers-container .tile-item .fake-joker-star {
+  font-size: 1.05rem !important;
+}
+
+.quadrant-pers-container .tile-item .fake-joker-label {
+  font-size: 0.3rem !important;
+  margin-top: -2px !important;
+  letter-spacing: 0.2px !important;
+}
+
+.quadrant-pers-container .tile-item.is-useful::after {
+  font-size: 0.45rem !important;
+  top: 1px !important;
+  left: 1px !important;
 }
 
 .process-guide-pill {
@@ -1185,7 +1243,7 @@ input, select {
   max-width: 1040px;
   margin: 0 auto;
   flex-shrink: 0;
-  padding-bottom: 24px;
+  padding-bottom: 10px;
   z-index: 45;
 }
 
@@ -1194,10 +1252,10 @@ input, select {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 40px;
-  min-height: 40px;
-  max-height: 40px;
-  margin-bottom: 8px;
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  margin-bottom: 4px;
   padding: 0 12px;
   box-sizing: border-box;
   flex-wrap: nowrap;

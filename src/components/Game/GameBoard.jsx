@@ -687,7 +687,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                           avatar={quad.isViewer ? viewerAvatar : quad.player?.avatar}
                           isBot={quad.player?.isBot}
                           name={quad.player?.name}
-                          size={28}
+                          size={22}
                           className="quadrant-avatar"
                           style={{ margin: 0 }}
                         />
