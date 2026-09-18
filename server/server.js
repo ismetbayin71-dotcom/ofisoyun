@@ -140,6 +140,15 @@ io.on('connection', (socket) => {
     broadcastLobbyState(room);
   });
 
+  // Update Player Avatar
+  socket.on('player:updateAvatar', ({ roomId, avatar }) => {
+    const room = roomId ? roomManager.getRoom(roomId) : roomManager.getRoomBySocketId(socket.id);
+    if (!room) return;
+    room.updatePlayerAvatar(socket.id, avatar);
+    broadcastLobbyState(room);
+    if (room.game) broadcastGameState(room);
+  });
+
   // Add Bot
   socket.on('lobby:addBot', ({ roomId, seatIndex, botName }) => {
     const room = roomManager.getRoom(roomId);

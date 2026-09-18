@@ -83,6 +83,11 @@ export class BotAI {
           game.discardTile(botPlayer.id, discardTile.id, false);
         } else if (botPlayer.hand.length > 0) {
           game.discardTile(botPlayer.id, botPlayer.hand[0].id, false);
+        } else {
+          // Safety fallback: if bot somehow reached 0 tiles, ensure round ends so game never hangs
+          if (game.endRoundWinner) {
+            game.endRoundWinner(pIdx, null);
+          }
         }
 
         if (onUpdate) onUpdate();
@@ -106,13 +111,28 @@ export class BotAI {
       const { pers, totalPoints } = RuleValidator.findBest101Pers(botPlayer.hand, game.okeyInfo);
 
       if (pers.length > 0) {
-        if (!hasOpened && totalPoints >= minRequired) {
-          const res = game.openRunsHand(botPlayer.id, pers);
-          if (res.success) return true;
-        } else if (hasOpened && pers.length > 0) {
-          // Already opened earlier: open any new complete per
-          const res = game.openRunsHand(botPlayer.id, pers);
-          if (res.success) return true;
+        if (!hasOpened) {
+          const totalTiles = pers.reduce((sum, p) => sum + p.length, 0);
+          // 101 Rule: Must keep at least 1 tile in hand for discard
+          if (totalPoints >= minRequired && botPlayer.hand.length - totalTiles >= 1) {
+            const res = game.openRunsHand(botPlayer.id, pers);
+            if (res.success) return true;
+          }
+        } else {
+          // Already opened earlier: open any new complete per, but MUST keep at least 1 tile to discard
+          // (e.g. if hand has 3 tiles, cannot open 3 tiles because 3 - 3 = 0; if hand has 4 tiles, can open 3 and discard 1 to finish)
+          const validPersToOpen = [];
+          let openedTilesCount = 0;
+          for (const per of pers) {
+            if (botPlayer.hand.length - (openedTilesCount + per.length) >= 1) {
+              validPersToOpen.push(per);
+              openedTilesCount += per.length;
+            }
+          }
+          if (validPersToOpen.length > 0) {
+            const res = game.openRunsHand(botPlayer.id, validPersToOpen);
+            if (res.success) return true;
+          }
         }
       }
     }
@@ -122,11 +142,25 @@ export class BotAI {
       const { pairs, pairCount } = RuleValidator.find101Pairs(botPlayer.hand, game.okeyInfo);
 
       if (!hasOpened && pairCount >= 5) {
-        const res = game.openPairsHand(botPlayer.id, pairs.slice(0, 5));
-        if (res.success) return true;
+        const selectedPairs = pairs.slice(0, 5);
+        const totalTiles = selectedPairs.length * 2;
+        if (botPlayer.hand.length - totalTiles >= 1) {
+          const res = game.openPairsHand(botPlayer.id, selectedPairs);
+          if (res.success) return true;
+        }
       } else if (hasOpened && openerType === 'pairs' && pairs.length > 0) {
-        const res = game.openPairsHand(botPlayer.id, pairs);
-        if (res.success) return true;
+        const validPairs = [];
+        let count = 0;
+        for (const pair of pairs) {
+          if (botPlayer.hand.length - (count + 2) >= 1) {
+            validPairs.push(pair);
+            count += 2;
+          }
+        }
+        if (validPairs.length > 0) {
+          const res = game.openPairsHand(botPlayer.id, validPairs);
+          if (res.success) return true;
+        }
       }
     }
 
@@ -135,8 +169,18 @@ export class BotAI {
     if (hasOpened && openerType === 'runs' && pairOpenerIdx !== -1) {
       const { pairs } = RuleValidator.find101Pairs(botPlayer.hand, game.okeyInfo);
       if (pairs.length > 0) {
-        const res = game.processPairs(botPlayer.id, pairs, pairOpenerIdx);
-        if (res.success) return true;
+        const validPairs = [];
+        let count = 0;
+        for (const pair of pairs) {
+          if (botPlayer.hand.length - (count + 2) >= 1) {
+            validPairs.push(pair);
+            count += 2;
+          }
+        }
+        if (validPairs.length > 0) {
+          const res = game.processPairs(botPlayer.id, validPairs, pairOpenerIdx);
+          if (res.success) return true;
+        }
       }
     }
 

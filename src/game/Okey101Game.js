@@ -233,6 +233,14 @@ export class Okey101Game {
       }
     }
 
+    // 101 Rule: Must keep at least 1 tile in hand to discard at end of turn (finish rule: at least 4 tiles to open 3 and discard 1)
+    if (player.hand.length - requestedTileIds.length < 1) {
+      return {
+        success: false,
+        message: '101 Kuralı: Per açtıktan sonra yere taş atmak için elinizde en az 1 taş kalmalıdır! Bitiş için en az 4 taşınız olup 3 tanesini açıp 1 tanesini yere atarak bitmelisiniz.'
+      };
+    }
+
     player.hand = player.hand.filter(t => !requestedTileIds.includes(t.id));
 
     for (const per of pers) {
@@ -300,6 +308,14 @@ export class Okey101Game {
       if (!handMap.has(id)) {
         return { success: false, message: 'Seçilen taşlar elinizde bulunamadı!' };
       }
+    }
+
+    // 101 Rule: Must keep at least 1 tile in hand to discard at end of turn
+    if (player.hand.length - requestedTileIds.length < 1) {
+      return {
+        success: false,
+        message: '101 Kuralı: Çift açtıktan sonra yere taş atmak için elinizde en az 1 taş kalmalıdır!'
+      };
     }
 
     player.hand = player.hand.filter(t => !requestedTileIds.includes(t.id));
@@ -381,6 +397,14 @@ export class Okey101Game {
       }
     }
 
+    // 101 Rule: Must keep at least 1 tile in hand to discard at end of turn
+    if (player.hand.length - requestedTileIds.length < 1) {
+      return {
+        success: false,
+        message: '101 Kuralı: Çift işledikten sonra yere taş atmak için elinizde en az 1 taş kalmalıdır!'
+      };
+    }
+
     // Remove from player's hand
     player.hand = player.hand.filter(t => !requestedTileIds.includes(t.id));
 
@@ -439,6 +463,14 @@ export class Okey101Game {
     const tileIndex = player.hand.findIndex(t => t.id === tileId);
     if (tileIndex === -1) {
       return { success: false, message: 'İşlenecek taş elinizde bulunamadı.' };
+    }
+
+    // 101 Rule: Must keep at least 1 tile in hand to discard at end of turn. Cannot process the last remaining tile!
+    if (player.hand.length <= 1) {
+      return {
+        success: false,
+        message: '101 Kuralı: Yere taş atmak için elinizde en az 1 taş kalmalıdır! Son kalan taşınızı işleyemezsiniz, yere atarak bitmelisiniz.'
+      };
     }
 
     const targetPer = this.tablePers.find(p => p.id === targetPerId);

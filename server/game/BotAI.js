@@ -83,6 +83,11 @@ export class BotAI {
         if (discardTile) {
           game.discardTile(botPlayer.id, discardTile.id, false);
           if (onUpdate) onUpdate();
+        } else if (botPlayer.hand.length > 0) {
+          game.discardTile(botPlayer.id, botPlayer.hand[0].id, false);
+          if (onUpdate) onUpdate();
+        } else {
+          if (game.endRoundWinner) game.endRoundWinner(pIdx, null);
         }
       }, 700);
     }, 600);
@@ -159,9 +164,11 @@ export class BotAI {
     }
 
     if (foundPers.length > 0) {
+      const totalTiles = foundPers.reduce((sum, p) => sum + p.length, 0);
       const minRequired = game.options.folded ? game.highestOpenedPoints : 101;
       const validation = RuleValidator.validate101Opening(foundPers, okeyInfo, minRequired);
-      if (validation.valid) {
+      // 101 Rule: Must keep at least 1 tile in hand to discard
+      if (validation.valid && botPlayer.hand.length - totalTiles >= 1) {
         game.openRunsHand(botPlayer.id, foundPers);
       }
     }
@@ -171,7 +178,7 @@ export class BotAI {
    * Tries to process tiles onto table pers
    */
   static tryProcessTiles101(game, botPlayer) {
-    if (!game.tablePers || game.tablePers.length === 0) return;
+    if (!game.tablePers || game.tablePers.length === 0 || botPlayer.hand.length <= 1) return;
 
     for (const per of game.tablePers) {
       for (let i = 0; i < botPlayer.hand.length; i++) {

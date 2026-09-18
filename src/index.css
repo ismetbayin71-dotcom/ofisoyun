@@ -499,21 +499,86 @@ input, select {
 }
 
 .opponent-tag {
-  background: rgba(10, 24, 16, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 8px 16px;
-  border-radius: 12px;
+  background: rgba(10, 24, 16, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 8px 14px 10px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column; /* AVATAR DISPLAYED ABOVE NAME */
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  min-width: 120px;
+}
+
+.seat-avatar-wrapper {
   display: flex;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  transition: all 0.3s;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.seat-avatar-wrapper .player-tag-avatar {
+  border-width: 2px;
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s ease, border-color 0.3s ease;
+}
+
+.opponent-tag:hover .seat-avatar-wrapper .player-tag-avatar {
+  transform: scale(1.06);
+}
+
+.seat-info-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 2px;
+}
+
+.seat-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.seat-player-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.seat-stats-row {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .opponent-tag.active-turn {
   border-color: var(--gold-accent);
-  box-shadow: 0 0 20px rgba(229, 185, 76, 0.5), inset 0 0 10px rgba(229, 185, 76, 0.2);
+  box-shadow: 0 0 20px rgba(229, 185, 76, 0.55), inset 0 0 10px rgba(229, 185, 76, 0.2);
   animation: pulseAura 1.8s infinite;
+}
+
+.opponent-tag.active-turn .seat-avatar-wrapper .player-tag-avatar {
+  border-color: var(--gold-accent);
+  box-shadow: 0 0 14px rgba(229, 185, 76, 0.7);
+}
+
+.quadrant-avatar {
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes pulseAura {

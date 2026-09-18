@@ -115,7 +115,8 @@ export class Okey101Game {
       return { success: false, message: 'Sıra sizde değil veya taş çekilmedi.' };
     }
 
-    const minRequired = this.options.folded ? this.highestOpenedPoints : 101;
+    const alreadyOpened = !!this.openedHands[pIdx];
+    const minRequired = alreadyOpened ? 0 : (this.options.folded ? this.highestOpenedPoints : 101);
     const validation = RuleValidator.validate101Opening(pers, this.okeyInfo, minRequired);
 
     if (!validation.valid) {
@@ -131,6 +132,14 @@ export class Okey101Game {
       if (!handMap.has(id)) {
         return { success: false, message: 'Seçtiğiniz taşlardan bazıları elinizde yok!' };
       }
+    }
+
+    // 101 Rule: Must keep at least 1 tile in hand to discard at end of turn
+    if (player.hand.length - requestedTileIds.length < 1) {
+      return {
+        success: false,
+        message: '101 Kuralı: Per açtıktan sonra yere taş atmak için elinizde en az 1 taş kalmalıdır! Bitiş için en az 4 taşınız olup 3 tanesini açıp 1 tanesini yere atarak bitmelisiniz.'
+      };
     }
 
     // Remove opened tiles from player hand
@@ -184,8 +193,16 @@ export class Okey101Game {
 
     for (const id of requestedTileIds) {
       if (!handMap.has(id)) {
-        return { success: false, message: 'Seçtiğiniz taşlardan bazıları elinizde yok!' };
+        return { success: false, message: 'Seçtiğiniz çift taşlar elinizde bulunamadı!' };
       }
+    }
+
+    // 101 Rule: Must keep at least 1 tile in hand to discard at end of turn
+    if (player.hand.length - requestedTileIds.length < 1) {
+      return {
+        success: false,
+        message: '101 Kuralı: Çift açtıktan sonra yere taş atmak için elinizde en az 1 taş kalmalıdır!'
+      };
     }
 
     player.hand = player.hand.filter(t => !requestedTileIds.includes(t.id));
@@ -229,6 +246,14 @@ export class Okey101Game {
     const tileIndex = player.hand.findIndex(t => t.id === tileId);
     if (tileIndex === -1) {
       return { success: false, message: 'İşlenecek taş elinizde bulunamadı.' };
+    }
+
+    // 101 Rule: Must keep at least 1 tile in hand to discard at end of turn
+    if (player.hand.length <= 1) {
+      return {
+        success: false,
+        message: '101 Kuralı: Yere taş atmak için elinizde en az 1 taş kalmalıdır! Son kalan taşınızı işleyemezsiniz, yere atarak bitmelisiniz.'
+      };
     }
 
     const targetPer = this.tablePers.find(p => p.id === targetPerId);

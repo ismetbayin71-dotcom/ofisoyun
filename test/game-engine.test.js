@@ -103,6 +103,54 @@ console.assert(firstPlayer.hand.length === 14, 'First player should now have 14 
 console.assert(game.turnIndex === 2, `Turn should advance to next player, got ${game.turnIndex}`);
 console.log('✓ OkeyGame turn flow passed!');
 
+console.log('\n--- 4. OKEY 101 REMAINING TILE & FINISH RULES ---');
+const g101 = new Okey101Game('test-101', { folded: false });
+g101.players = [
+  { id: 'p1', name: 'Can (Bot)', hand: [], isBot: true },
+  { id: 'p2', name: 'Zeynep', hand: [], isBot: true },
+  { id: 'p3', name: 'Ahmet', hand: [], isBot: true },
+  { id: 'p4', name: 'Elif', hand: [], isBot: true }
+];
+g101.status = 'playing';
+g101.turnIndex = 0;
+g101.hasDrawn = true;
+g101.okeyInfo = { color: 'blue', value: 1 };
+g101.openedHands[0] = { type: 'runs', points: 105 };
+
+// Subcase A: Bot has 3 tiles left in hand and tries to open a 3-tile per -> MUST FAIL!
+const t1 = new Tile('r10', 'red', 10);
+const t2 = new Tile('r11', 'red', 11);
+const t3 = new Tile('r12', 'red', 12);
+g101.players[0].hand = [t1, t2, t3];
+
+const illegalOpen = g101.openRunsHand('p1', [[t1, t2, t3]]);
+console.assert(illegalOpen.success === false, 'Cannot open 3 tiles when hand length is 3 (leaves 0 tiles to discard)');
+console.assert(g101.players[0].hand.length === 3, 'Hand length must remain 3');
+console.log('✓ 101 rule passed: cannot open when remaining hand would be < 1!');
+
+// Subcase B: Bot has 4 tiles in hand (3 to open, 1 to discard and finish!) -> MUST SUCCEED!
+const t4 = new Tile('b5', 'black', 5);
+g101.players[0].hand = [t1, t2, t3, t4];
+
+const legalOpen = g101.openRunsHand('p1', [[t1, t2, t3]]);
+console.assert(legalOpen.success === true, 'Can open 3 tiles when hand length is 4 (leaves 1 tile to discard)');
+console.assert(g101.players[0].hand.length === 1, 'Exactly 1 tile must remain for discard');
+
+// Discard the last tile to finish!
+const finishRes = g101.discardTile('p1', t4.id);
+console.assert(finishRes.success === true && finishRes.finished === true, 'Discarding last tile must finish round');
+console.assert(g101.status === 'round_ended', 'Round status should be round_ended');
+console.log('✓ 101 rule passed: having 4 tiles, opening 3 and discarding 1 finishes and wins round!');
+
+// Subcase C: Player with 1 tile left tries to process it -> MUST FAIL!
+g101.status = 'playing';
+g101.hasDrawn = true;
+g101.players[0].hand = [t4];
+g101.tablePers = [{ id: 'per-test', tiles: [new Tile('b2', 'black', 2), new Tile('b3', 'black', 3), new Tile('b4', 'black', 4)] }];
+const illegalProcess = g101.processTile('p1', t4.id, 'per-test');
+console.assert(illegalProcess.success === false, 'Cannot process the last remaining tile');
+console.log('✓ 101 rule passed: cannot process last remaining tile!');
+
 console.log('\n=====================================');
 console.log('🎉 ALL GAME ENGINE TESTS PASSED!');
 console.log('=====================================');

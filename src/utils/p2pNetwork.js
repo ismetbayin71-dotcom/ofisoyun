@@ -218,6 +218,12 @@ class P2PNetwork {
         break;
       }
 
+      case 'player:updateAvatar': {
+        this.localRoom.updatePlayerAvatar(conn.peer, data.avatar);
+        this.broadcastState();
+        break;
+      }
+
       case 'chat:send': {
         this.localRoom.addChatMessage(data.senderName, data.text, false);
         this.broadcastState();
@@ -378,6 +384,10 @@ class P2PNetwork {
     } else if (event === 'media:togglePlay') {
       this.localRoom.toggleMediaPlay(data.isPlaying);
       this.broadcastState();
+    } else if (event === 'player:updateAvatar') {
+      this.localRoom.updatePlayerAvatar(this.myId, data.avatar);
+      this.broadcastState();
+      if (callback) callback({ success: true });
     }
   }
 

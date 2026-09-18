@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { authService, AVAILABLE_AVATARS } from '../../utils/authService.js';
+import { network } from '../../utils/network.js';
 import { processAvatarImage } from '../../utils/mediaUtils.js';
 import { PlayerAvatar } from './PlayerAvatar.jsx';
 import { User, LogOut, Trophy, Award, ChevronDown, Camera, Upload } from 'lucide-react';
@@ -32,6 +33,7 @@ export const UserProfileCard = ({ user, onOpenAuth, onLogout }) => {
 
   const handleSelectNewAvatar = (avatarId) => {
     authService.updateAvatar(avatarId);
+    network.emit('player:updateAvatar', { avatar: avatarId });
     setShowAvatarPicker(false);
   };
 
@@ -42,6 +44,7 @@ export const UserProfileCard = ({ user, onOpenAuth, onLogout }) => {
     try {
       const dataUrl = await processAvatarImage(file, 120);
       authService.updateAvatar(dataUrl);
+      network.emit('player:updateAvatar', { avatar: dataUrl });
       setShowAvatarPicker(false);
     } catch (err) {
       alert(err.message || 'Resim yüklenemedi.');

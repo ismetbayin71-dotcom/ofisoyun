@@ -8,6 +8,7 @@ import { ScoreModal } from '../UI/ScoreModal.jsx';
 import { ChatDrawer } from '../UI/ChatDrawer.jsx';
 import { YouTubeTvWidget } from './YouTubeTvWidget.jsx';
 import { PlayerAvatar } from '../UI/PlayerAvatar.jsx';
+import { authService } from '../../utils/authService.js';
 import { Volume2, VolumeX, LogOut, HelpCircle, Bot, Sparkles, Layers } from 'lucide-react';
 
 const isEmojiOnly = (text) => {
@@ -22,6 +23,14 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
   const [selectedProcessTile, setSelectedProcessTile] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [showRulesModal, setShowRulesModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
+
+  useEffect(() => {
+    const unsub = authService.onAuthChange((user) => {
+      setCurrentUser(user);
+    });
+    return unsub;
+  }, []);
 
   if (!gameState) return null;
 
@@ -45,6 +54,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
   // Find viewer's seat index
   const viewerSeatIdx = players.findIndex(p => p && p.id === currentSocketId);
   const viewer = viewerSeatIdx !== -1 ? players[viewerSeatIdx] : null;
+  const viewerAvatar = currentUser?.avatar || viewer?.avatar || 'crown';
   const isMyTurn = turnIndex === viewerSeatIdx;
   const activePlayerName = players[turnIndex]?.name || 'Oyuncu';
 
@@ -533,22 +543,23 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         <div className="opponent-top">
           {topOpponent.player && (
             <div className={`opponent-tag ${turnIndex === topOpponent.seatIndex ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
-              <PlayerAvatar
-                avatar={topOpponent.player.avatar}
-                isBot={topOpponent.player.isBot}
-                name={topOpponent.player.name}
-                size={36}
-                className="seat-avatar"
-                style={{ margin: 0 }}
-              />
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <strong style={{ fontSize: '0.95rem' }}>{topOpponent.player.name}</strong>
+              <div className="seat-avatar-wrapper">
+                <PlayerAvatar
+                  avatar={topOpponent.player.avatar}
+                  isBot={topOpponent.player.isBot}
+                  name={topOpponent.player.name}
+                  size={42}
+                  className="player-tag-avatar"
+                />
+              </div>
+              <div className="seat-info-col">
+                <div className="seat-name-row">
+                  <strong className="seat-player-name">{topOpponent.player.name}</strong>
                   {turnIndex === topOpponent.seatIndex && (
                     <span className="turn-tag-badge">SIRA ONDA</span>
                   )}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                <div className="seat-stats-row">
                   {topOpponent.player.tileCount} Taş • Skor: {scores[topOpponent.seatIndex] || 0}
                 </div>
               </div>
@@ -589,22 +600,23 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         <div className="opponent-left">
           {leftOpponent.player && (
             <div className={`opponent-tag ${turnIndex === leftOpponent.seatIndex ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
-              <PlayerAvatar
-                avatar={leftOpponent.player.avatar}
-                isBot={leftOpponent.player.isBot}
-                name={leftOpponent.player.name}
-                size={36}
-                className="seat-avatar"
-                style={{ margin: 0 }}
-              />
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <strong style={{ fontSize: '0.95rem' }}>{leftOpponent.player.name}</strong>
+              <div className="seat-avatar-wrapper">
+                <PlayerAvatar
+                  avatar={leftOpponent.player.avatar}
+                  isBot={leftOpponent.player.isBot}
+                  name={leftOpponent.player.name}
+                  size={42}
+                  className="player-tag-avatar"
+                />
+              </div>
+              <div className="seat-info-col">
+                <div className="seat-name-row">
+                  <strong className="seat-player-name">{leftOpponent.player.name}</strong>
                   {turnIndex === leftOpponent.seatIndex && (
                     <span className="turn-tag-badge">SIRA ONDA</span>
                   )}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                <div className="seat-stats-row">
                   {leftOpponent.player.tileCount} Taş • Skor: {scores[leftOpponent.seatIndex] || 0}
                 </div>
               </div>
@@ -672,11 +684,11 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                     <div className="quadrant-header">
                       <div className="quadrant-player-info" style={{ position: 'relative' }}>
                         <PlayerAvatar
-                          avatar={quad.player?.avatar}
+                          avatar={quad.isViewer ? viewerAvatar : quad.player?.avatar}
                           isBot={quad.player?.isBot}
                           name={quad.player?.name}
-                          size={26}
-                          className="seat-avatar"
+                          size={28}
+                          className="quadrant-avatar"
                           style={{ margin: 0 }}
                         />
                         <strong className="quadrant-name">
@@ -777,22 +789,23 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         <div className="opponent-right">
           {rightOpponent.player && (
             <div className={`opponent-tag ${turnIndex === rightOpponent.seatIndex ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
-              <PlayerAvatar
-                avatar={rightOpponent.player.avatar}
-                isBot={rightOpponent.player.isBot}
-                name={rightOpponent.player.name}
-                size={36}
-                className="seat-avatar"
-                style={{ margin: 0 }}
-              />
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <strong style={{ fontSize: '0.95rem' }}>{rightOpponent.player.name}</strong>
+              <div className="seat-avatar-wrapper">
+                <PlayerAvatar
+                  avatar={rightOpponent.player.avatar}
+                  isBot={rightOpponent.player.isBot}
+                  name={rightOpponent.player.name}
+                  size={42}
+                  className="player-tag-avatar"
+                />
+              </div>
+              <div className="seat-info-col">
+                <div className="seat-name-row">
+                  <strong className="seat-player-name">{rightOpponent.player.name}</strong>
                   {turnIndex === rightOpponent.seatIndex && (
                     <span className="turn-tag-badge">SIRA ONDA</span>
                   )}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                <div className="seat-stats-row">
                   {rightOpponent.player.tileCount} Taş • Skor: {scores[rightOpponent.seatIndex] || 0}
                 </div>
               </div>
@@ -822,22 +835,23 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         <div className="opponent-bottom">
           {viewer && (
             <div className={`opponent-tag viewer-tag ${isMyTurn ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
-              <PlayerAvatar
-                avatar={viewer.avatar}
-                isBot={false}
-                name={viewer.name}
-                size={36}
-                className="seat-avatar"
-                style={{ margin: 0 }}
-              />
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <strong style={{ fontSize: '0.95rem' }}>{viewer.name} (Siz)</strong>
+              <div className="seat-avatar-wrapper">
+                <PlayerAvatar
+                  avatar={viewerAvatar}
+                  isBot={false}
+                  name={viewer.name}
+                  size={42}
+                  className="player-tag-avatar"
+                />
+              </div>
+              <div className="seat-info-col">
+                <div className="seat-name-row">
+                  <strong className="seat-player-name">{viewer.name} (Siz)</strong>
                   {isMyTurn && (
                     <span className="turn-tag-badge">SIRA SİZDE</span>
                   )}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                <div className="seat-stats-row">
                   {viewer.hand?.length || 0} Taş • Skor: {scores[viewerSeatIdx] || 0}
                 </div>
               </div>

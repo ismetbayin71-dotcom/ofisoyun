@@ -136,6 +136,21 @@ export class Room {
     return false;
   }
 
+  updatePlayerAvatar(socketId, avatar) {
+    if (!avatar) return false;
+    const seat = this.seats.find(s => s && s.id === socketId);
+    if (seat) {
+      seat.avatar = avatar;
+    }
+    if (this.game && this.game.players) {
+      const player = this.game.players.find(p => p && p.id === socketId);
+      if (player) {
+        player.avatar = avatar;
+      }
+    }
+    return true;
+  }
+
   startGame() {
     const activeSeats = this.seats.filter(s => s !== null);
     if (activeSeats.length !== 4) {
