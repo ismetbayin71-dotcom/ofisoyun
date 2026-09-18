@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { network } from './utils/network.js';
+import { authService } from './utils/authService.js';
 import { LobbyView } from './components/Lobby/LobbyView.jsx';
 import { WaitingRoom } from './components/Lobby/WaitingRoom.jsx';
 import { GameBoard } from './components/Game/GameBoard.jsx';
@@ -10,9 +11,12 @@ function App() {
   const [roomState, setRoomState] = useState(null);
   const [gameState, setGameState] = useState(null);
   const [myPeerId, setMyPeerId] = useState(null);
+  const lastRecordedRoundRef = useRef(null);
 
-  // Saved nickname
+  // Saved nickname (prioritize logged-in user if exists)
   const [playerName, setPlayerName] = useState(() => {
+    const user = authService.getCurrentUser();
+    if (user && user.username) return user.username;
     return localStorage.getItem('okey_player_name') || 'Oyuncu';
   });
 
@@ -38,6 +42,19 @@ function App() {
     const handleGameState = (state) => {
       setGameState(state);
       setCurrentScreen('game');
+
+      // Auto-record round stats for authenticated player
+      if (state.status === 'round_ended' && state.winner) {
+        const roundKey = `${state.roomId}-${state.currentRound}-${state.winner.name}`;
+        if (lastRecordedRoundRef.current !== roundKey) {
+          lastRecordedRoundRef.current = roundKey;
+          const myId = myPeerId || network.getId();
+          const viewerSeatIdx = state.players?.findIndex(p => p && p.id === myId);
+          const isWinner = state.winner.id === myId || (viewerSeatIdx !== -1 && state.winner.seat === viewerSeatIdx);
+          const myScore = (viewerSeatIdx !== -1 && state.scores) ? state.scores[viewerSeatIdx] : 0;
+          authService.recordGameResult(isWinner, myScore);
+        }
+      }
     };
 
     network.on('connect', handleConnect);

@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { network } from '../../utils/network.js';
+import { authService } from '../../utils/authService.js';
+import { AuthModal } from '../UI/AuthModal.jsx';
+import { UserProfileCard } from '../UI/UserProfileCard.jsx';
 import { PlusCircle, LogIn, Globe, Sparkles } from 'lucide-react';
 
 export const LobbyView = ({ onRoomJoined, playerName, setPlayerName }) => {
@@ -9,6 +12,19 @@ export const LobbyView = ({ onRoomJoined, playerName, setPlayerName }) => {
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Sync auth state
+  useEffect(() => {
+    const unsub = authService.onAuthChange((user) => {
+      setCurrentUser(user);
+      if (user && user.username) {
+        setPlayerName(user.username);
+      }
+    });
+    return unsub;
+  }, [setPlayerName]);
 
   // Create room handler
   const handleCreateRoom = async (e) => {
@@ -84,10 +100,20 @@ export const LobbyView = ({ onRoomJoined, playerName, setPlayerName }) => {
           <span className="brand-badge">Çevrimiçi Web</span>
         </div>
 
-        <div className="network-pill" title="WebRTC Peer-to-Peer">
-          <Globe size={16} color="#38ef7d" />
-          <span>Bağlantı Modu:</span>
-          <strong>P2P WebRTC (Sunucusuz / Canlı)</strong>
+        <div className="lobby-header-right">
+          <UserProfileCard
+            user={currentUser}
+            onOpenAuth={() => setShowAuthModal(true)}
+            onLogout={() => {
+              authService.logout();
+            }}
+          />
+
+          <div className="network-pill" title="WebRTC Peer-to-Peer">
+            <Globe size={16} color="#38ef7d" />
+            <span>Bağlantı:</span>
+            <strong>P2P WebRTC</strong>
+          </div>
         </div>
       </header>
 
@@ -231,6 +257,17 @@ export const LobbyView = ({ onRoomJoined, playerName, setPlayerName }) => {
           </div>
         </div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={(user) => {
+          if (user && user.username) {
+            setPlayerName(user.username);
+          }
+        }}
+      />
     </div>
   );
 };
