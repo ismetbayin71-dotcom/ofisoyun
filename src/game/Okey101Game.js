@@ -546,13 +546,28 @@ export class Okey101Game {
       return { success: true, finished: true };
     }
 
+    // 101 Rule Check: Discarding a playable tile on the table incurs +101 penalty
+    const isPlayableTile = this.tablePers.some(
+      p => !p.isPair && RuleValidator.canProcessTile(discardedTile, p.tiles, this.okeyInfo)
+    );
+
+    let penaltyApplied = false;
+    if (isPlayableTile) {
+      this.scores[pIdx] += 101;
+      penaltyApplied = true;
+    }
+
     this.lastAction = {
       type: 'DISCARD_TILE',
-      message: `${player.name} bir taş attı.`
+      message: penaltyApplied
+        ? `⚠️ ${player.name} masadaki pere işlenebilecek taşı (işler taş) yere attığı için +101 CEZA puanı aldı!`
+        : `${player.name} bir taş attı.`,
+      isPlayablePenalty: penaltyApplied,
+      penaltyPlayer: player.name
     };
 
     this.turnIndex = (this.turnIndex + 1) % 4;
-    return { success: true, discardedTile };
+    return { success: true, discardedTile, penaltyApplied };
   }
 
   endRoundWinner(winnerIdx, finalDiscardTile) {
@@ -580,7 +595,7 @@ export class Okey101Game {
       if (!p) continue;
 
       if (!this.openedHands[i]) {
-        roundPenalties[i] = 101 * multiplier;
+        roundPenalties[i] = 202 * multiplier;
       } else {
         const handSum = p.hand.reduce((acc, t) => acc + RuleValidator.getTileScore(t), 0);
         roundPenalties[i] = handSum * multiplier;
@@ -626,7 +641,7 @@ export class Okey101Game {
       const p = this.players[i];
       if (!p) continue;
       if (!this.openedHands[i]) {
-        roundPenalties[i] = 101;
+        roundPenalties[i] = 202;
       } else {
         roundPenalties[i] = p.hand.reduce((acc, t) => acc + RuleValidator.getTileScore(t), 0);
       }

@@ -1140,73 +1140,191 @@ input, select {
   font-variant-numeric: tabular-nums;
 }
 
-/* PERSISTENT SCORE HUD WIDGET IN CORNER (Fixed at Top-Left) */
-.hud-corner-card {
+/* LIVE SCOREBOARD WIDGET IN CORNER (Fixed at Top-Left) */
+.hud-corner-card.live-score-widget {
   position: fixed;
-  left: 18px;
-  top: 64px;
-  background: rgba(12, 26, 18, 0.95);
+  left: 16px;
+  top: 60px;
+  background: rgba(10, 24, 16, 0.94);
   backdrop-filter: blur(16px);
-  border: 1.5px solid rgba(229, 185, 76, 0.45);
-  border-radius: 16px;
-  padding: 12px 18px;
-  min-width: 230px;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 15px rgba(229, 185, 76, 0.15);
+  border: 1.5px solid rgba(229, 185, 76, 0.4);
+  border-radius: 14px;
+  padding: 10px 14px;
+  min-width: 220px;
+  max-width: 250px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 15px rgba(229, 185, 76, 0.12);
   z-index: 95;
   pointer-events: auto;
-  transition: transform 0.2s;
+  box-sizing: border-box;
+  transition: transform 0.2s ease;
 }
 
-.hud-corner-card:hover {
-  transform: scale(1.02);
+.hud-corner-card.live-score-widget:hover {
+  transform: translateY(-2px);
+  border-color: rgba(229, 185, 76, 0.65);
 }
 
-.hud-corner-title {
+.live-score-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.live-score-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-score-badge-icon {
+  font-size: 0.95rem;
+}
+
+.live-score-title {
   font-size: 0.78rem;
   font-weight: 900;
   color: var(--gold-accent);
-  letter-spacing: 0.8px;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
-  margin-bottom: 8px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.hud-corner-row {
+.live-score-round-pill {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #38ef7d;
+  background: rgba(56, 239, 125, 0.12);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 239, 125, 0.25);
+}
+
+.live-score-list {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.live-score-row {
+  display: flex;
   align-items: center;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  margin-bottom: 5px;
-}
-
-.hud-corner-row strong {
-  color: #fff;
-}
-
-.hud-badge-ready {
-  display: block;
-  background: rgba(16, 185, 129, 0.25);
-  border: 1px solid #10b981;
-  color: #34d399;
-  font-size: 0.76rem;
-  font-weight: 800;
-  padding: 4px 10px;
+  justify-content: space-between;
+  padding: 5px 8px;
   border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  transition: all 0.15s ease;
+}
+
+.live-score-row.is-viewer-row {
+  background: rgba(229, 185, 76, 0.12);
+  border: 1px solid rgba(229, 185, 76, 0.35);
+}
+
+.live-score-row.is-leader-row {
+  box-shadow: inset 0 0 10px rgba(229, 185, 76, 0.15);
+}
+
+.live-score-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.live-score-rank-icon {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #94a3b8;
+  width: 14px;
   text-align: center;
 }
 
-.hud-badge-wait {
-  display: block;
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.5);
-  color: #fca5a5;
-  font-size: 0.74rem;
+.live-score-avatar {
+  margin: 0 !important;
+  flex-shrink: 0;
+}
+
+.live-score-name-col {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  overflow: hidden;
+}
+
+.live-score-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
+.you-tag {
+  color: var(--gold-accent);
+  font-size: 0.72rem;
+  margin-left: 2px;
+}
+
+.live-score-status-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.live-score-status-tag.tag-opened {
+  color: #38ef7d;
+}
+
+.live-score-status-tag.tag-waiting {
+  color: #64748b;
+}
+
+.live-score-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.live-score-val {
+  font-size: 0.88rem;
   font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 8px;
-  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-score-val.val-negative {
+  color: #38ef7d;
+}
+
+.live-score-val.val-positive {
+  color: #f87171;
+}
+
+.live-score-val.val-zero {
+  color: #cbd5e1;
+}
+
+.btn-cetele-toggle {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 6px;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.btn-cetele-toggle:hover {
+  background: rgba(229, 185, 76, 0.15);
+  color: var(--gold-accent);
+  border-color: rgba(229, 185, 76, 0.4);
 }
 
 /* DISCARD PILES (4 CORNERS) */

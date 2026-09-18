@@ -12,20 +12,23 @@ export const ScoreModal = ({
   isHost,
   onNextRound,
   currentRound = 1,
-  roundHistory = []
+  roundHistory = [],
+  isManualView = false
 }) => {
   if (!winner) return null;
 
   useEffect(() => {
-    sound.playWin();
-    try {
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
-    } catch (e) {}
-  }, []);
+    if (!isManualView) {
+      sound.playWin();
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      } catch (e) {}
+    }
+  }, [isManualView]);
 
   const cleanPlayerName = (name) => {
     if (!name) return 'Oyuncu';
@@ -167,8 +170,12 @@ export const ScoreModal = ({
           </table>
         </div>
 
-        {/* Sonraki El Butonu */}
-        {isHost ? (
+        {/* Sonraki El veya Kapat Butonu */}
+        {isManualView ? (
+          <button className="btn-secondary" style={{ width: '100%', marginTop: 8 }} onClick={onNextRound}>
+            Kapat
+          </button>
+        ) : isHost ? (
           <button className="btn-primary" style={{ width: '100%', marginTop: 8 }} onClick={onNextRound}>
             <RefreshCw size={16} style={{ marginRight: 6 }} />
             Sonraki Eli Başlat

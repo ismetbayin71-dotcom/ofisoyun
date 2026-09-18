@@ -276,6 +276,16 @@ export class BotAI {
         score += 15; // Strongly protect tiles that form valid pers!
       }
 
+      // Strongly avoid discarding a tile that fits a table per (incurs +101 penalty in 101 Okey!)
+      if (game && game.tablePers && game.tablePers.length > 0) {
+        const isPlayable = game.tablePers.some(
+          p => !p.isPair && RuleValidator.canProcessTile(t, p.tiles, okeyInfo)
+        );
+        if (isPlayable) {
+          score += 100;
+        }
+      }
+
       if (score < lowestScore) {
         lowestScore = score;
         worstTile = t;

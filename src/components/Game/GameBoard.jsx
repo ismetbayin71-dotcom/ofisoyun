@@ -23,6 +23,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
   const [selectedProcessTile, setSelectedProcessTile] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [showRulesModal, setShowRulesModal] = useState(false);
+  const [showScoreHistory, setShowScoreHistory] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
 
   useEffect(() => {
@@ -964,58 +965,93 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         />
       )}
 
-      {/* PERSISTENT SCORE & HAND STATUS CORNER HUD */}
-      {viewer && (
-        <div className="hud-corner-card">
-          <div className="hud-corner-title">👑 EL DURUMU & PUAN</div>
-          <div className="hud-corner-row">
-            <span>Eldeki Taş:</span>
-            <strong>{handStats.tileCount} adet</strong>
+      {/* LIVE PUAN TABLOSU WIDGET (Top-Left) */}
+      <div className="hud-corner-card live-score-widget">
+        <div className="live-score-header">
+          <div className="live-score-title-group">
+            <span className="live-score-badge-icon">📊</span>
+            <span className="live-score-title">PUAN TABLOSU</span>
           </div>
-          <div className="hud-corner-row">
-            <span>Toplam Taş Puanı:</span>
-            <strong style={{ fontSize: '1rem', color: '#e5b94c' }}>{handStats.totalPoints} puan</strong>
-          </div>
-
-          {gameType === '101' && (
-            <>
-              <div className="hud-corner-row">
-                <span>Açılabilir Seri:</span>
-                <strong style={{ color: canOpenRuns ? '#38ef7d' : '#f87171', fontWeight: 800 }}>
-                  {handStats.bestPersPoints} / {minRequiredPoints}
-                </strong>
-              </div>
-              <div className="hud-corner-row">
-                <span>Açılabilir Çift:</span>
-                <strong style={{ color: canOpenPairs ? '#38ef7d' : '#f87171', fontWeight: 800 }}>
-                  {handStats.pairCount} / 5 çift
-                </strong>
-              </div>
-
-              <div style={{ marginTop: 8 }}>
-                {viewer?.hasOpened ? (
-                  <span className="hud-badge-ready">🟢 Masaya Açtınız (İşleme Yapabilirsiniz)</span>
-                ) : canOpenRuns ? (
-                  <span className="hud-badge-ready">🟢 101 Barajı Aşıldı ({handStats.bestPersPoints} Puan - Açabilirsiniz!)</span>
-                ) : canOpenPairs ? (
-                  <span className="hud-badge-ready">🟢 5 Çift Hazır ({handStats.pairCount} Çift - Açabilirsiniz!)</span>
-                ) : (
-                  <span className="hud-badge-wait">🔴 101 İçin {minRequiredPoints - handStats.bestPersPoints} Puan Eksik</span>
-                )}
-              </div>
-            </>
-          )}
-
-          {gameType === 'classic' && (
-            <div style={{ marginTop: 6 }}>
-              <span className="hud-badge-ready" style={{ fontSize: '0.72rem' }}>
-                {RuleValidator.checkClassicWin(viewer?.hand || [], okeyInfo).win
-                  ? '🟢 BİTİŞE UYGUN (Okey Bit Yapabilirsiniz)'
-                  : 'Serilerinizi veya Çiftlerinizi tamamlayınız'}
-              </span>
-            </div>
-          )}
+          <span className="live-score-round-pill">Tur {gameState.currentRound || 1}</span>
         </div>
+
+        <div className="live-score-list">
+          {players.map((p, idx) => {
+            if (!p) return null;
+            const isViewer = idx === viewerSeatIdx;
+            const score = scores[idx] !== undefined ? scores[idx] : 0;
+            const isLeader = gameType === '101'
+              ? score === Math.min(...scores)
+              : score === Math.max(...scores);
+            const hasOpened = openedHands[idx] ? true : false;
+
+            return (
+              <div
+                key={idx}
+                className={`live-score-row ${isViewer ? 'is-viewer-row' : ''} ${isLeader ? 'is-leader-row' : ''}`}
+              >
+                <div className="live-score-left">
+                  <span className="live-score-rank-icon">
+                    {isLeader ? '👑' : `${idx + 1}.`}
+                  </span>
+                  <PlayerAvatar
+                    avatar={isViewer ? viewerAvatar : p.avatar}
+                    isBot={p.isBot}
+                    name={p.name}
+                    size={22}
+                    className="live-score-avatar"
+                  />
+                  <div className="live-score-name-col">
+                    <span className="live-score-name">
+                      {p.name} {isViewer && <strong className="you-tag">(Siz)</strong>}
+                    </span>
+                    {gameType === '101' && (
+                      <span className={`live-score-status-tag ${hasOpened ? 'tag-opened' : 'tag-waiting'}`}>
+                        {hasOpened ? 'Açtı' : 'Açmadı'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="live-score-right">
+                  <span className={`live-score-val ${score < 0 ? 'val-negative' : score > 0 ? 'val-positive' : 'val-zero'}`}>
+                    {score > 0 ? `+${score}` : score}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {gameState.roundHistory && gameState.roundHistory.length > 0 && (
+          <button
+            className="btn-cetele-toggle"
+            onClick={() => setShowScoreHistory(true)}
+            title="Tüm turların ayrıntılı çetelesini aç"
+          >
+            📋 Çetele Detayları
+          </button>
+        )}
+      </div>
+
+      {/* Manual View Score History Modal */}
+      {showScoreHistory && (
+        <ScoreModal
+          winner={{
+            name: 'Tur Geçmişi & Çetele',
+            finishType: 'Mevcut Puan Durumu',
+            roundPenalties: scores,
+            scores: [...scores]
+          }}
+          players={players}
+          scores={scores}
+          gameType={gameType}
+          isHost={players[0]?.id === currentSocketId}
+          onNextRound={() => setShowScoreHistory(false)}
+          currentRound={gameState.currentRound}
+          roundHistory={gameState.roundHistory || []}
+          isManualView={true}
+        />
       )}
 
       {/* Score Modal */}

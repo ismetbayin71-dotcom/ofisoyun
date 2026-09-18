@@ -79,7 +79,7 @@ export class BotAI {
         }
 
         // Step 3: Choose tile to discard
-        const discardTile = this.chooseTileToDiscard(botPlayer.hand, game.okeyInfo);
+        const discardTile = this.chooseTileToDiscard(botPlayer.hand, game.okeyInfo, game);
         if (discardTile) {
           game.discardTile(botPlayer.id, discardTile.id, false);
           if (onUpdate) onUpdate();
@@ -112,16 +112,21 @@ export class BotAI {
       }
     }
 
+    // Sort each color by value
+    for (const c in byColor) {
+      byColor[c].sort((a, b) => a.value - b.value);
+    }
+
     const foundPers = [];
     const usedTileIds = new Set();
 
-    // Look for consecutive runs of 3 or 4
+    // Look for consecutive runs of 3
     for (const color in byColor) {
-      const sorted = [...byColor[color]].sort((a, b) => a.value - b.value);
-      for (let i = 0; i <= sorted.length - 3; i++) {
-        const c1 = sorted[i];
-        const c2 = sorted[i + 1];
-        const c3 = sorted[i + 2];
+      const tiles = byColor[color];
+      for (let i = 0; i < tiles.length - 2; i++) {
+        const c1 = tiles[i];
+        const c2 = tiles[i + 1];
+        const c3 = tiles[i + 2];
         if (
           c2.value === c1.value + 1 &&
           c3.value === c2.value + 1 &&
@@ -157,32 +162,36 @@ export class BotAI {
         }
       }
       if (uniqueColors.length >= 3) {
-        const per = uniqueColors.slice(0, 3);
-        foundPers.push(per);
-        per.forEach(t => usedTileIds.add(t.id));
+        foundPers.push(uniqueColors.slice(0, 3));
+        uniqueColors.slice(0, 3).forEach(t => usedTileIds.add(t.id));
       }
     }
 
-    if (foundPers.length > 0) {
-      const totalTiles = foundPers.reduce((sum, p) => sum + p.length, 0);
-      const minRequired = game.options.folded ? game.highestOpenedPoints : 101;
-      const validation = RuleValidator.validate101Opening(foundPers, okeyInfo, minRequired);
-      // 101 Rule: Must keep at least 1 tile in hand to discard
-      if (validation.valid && botPlayer.hand.length - totalTiles >= 1) {
-        game.openRunsHand(botPlayer.id, foundPers);
-      }
+    // Calculate total points
+    const totalPoints = foundPers.reduce((acc, per) => {
+      return acc + RuleValidator.getPerPoints(per, okeyInfo, '101');
+    }, 0);
+
+    const minRequired = (game.highestOpenedPoints && game.highestOpenedPoints >= 101)
+      ? game.highestOpenedPoints + 1
+      : 101;
+
+    if (totalPoints >= minRequired && foundPers.length > 0) {
+      const res = game.openRunsHand(botPlayer.id, foundPers);
+      return res.success;
     }
+
+    return false;
   }
 
   /**
-   * Tries to process tiles onto table pers
+   * Tries to process tiles onto existing open pers on the table in 101
    */
   static tryProcessTiles101(game, botPlayer) {
-    if (!game.tablePers || game.tablePers.length === 0 || botPlayer.hand.length <= 1) return;
+    if (!game.tablePers || game.tablePers.length === 0) return;
 
     for (const per of game.tablePers) {
-      for (let i = 0; i < botPlayer.hand.length; i++) {
-        const tile = botPlayer.hand[i];
+      for (const tile of botPlayer.hand) {
         if (RuleValidator.isWildOkey(tile, game.okeyInfo)) continue; // Keep Okey
 
         const can = RuleValidator.canProcessTile(tile, per.tiles, game.okeyInfo);
@@ -200,7 +209,7 @@ export class BotAI {
    * Chooses the best tile to discard
    * Strategy: Discard the most isolated tile (never discard Okey!)
    */
-  static chooseTileToDiscard(hand, okeyInfo) {
+  static chooseTileToDiscard(hand, okeyInfo, game = null) {
     if (!hand || hand.length === 0) return null;
 
     // Filter out Okey wildcard
@@ -231,6 +240,16 @@ export class BotAI {
         // Identical tile (pair potential)
         if (t.value === other.value && t.color === other.color) {
           score += 5;
+        }
+      }
+
+      // Avoid discarding a tile that fits a table per (causes +101 penalty!)
+      if (game && game.tablePers && game.tablePers.length > 0) {
+        const isPlayable = game.tablePers.some(
+          p => !p.isPair && RuleValidator.canProcessTile(t, p.tiles, okeyInfo)
+        );
+        if (isPlayable) {
+          score += 100;
         }
       }
 
