@@ -142,6 +142,27 @@ export class Room {
     return false;
   }
 
+  // Switch Seat
+  switchSeat(socketId, targetSeatIdx) {
+    if (this.status !== 'lobby') return { success: false, message: 'Oyun devam ederken koltuk değiştirilemez.' };
+    if (targetSeatIdx < 0 || targetSeatIdx > 3) return { success: false, message: 'Geçersiz koltuk.' };
+
+    const currentIdx = this.seats.findIndex(s => s && s.id === socketId);
+    if (currentIdx === -1) return { success: false, message: 'Oyuncu bulunamadı.' };
+    if (currentIdx === targetSeatIdx) return { success: true, seatIndex: targetSeatIdx };
+
+    const targetSeat = this.seats[targetSeatIdx];
+    const mySeat = this.seats[currentIdx];
+
+    // Swap seats
+    this.seats[targetSeatIdx] = mySeat;
+    this.seats[currentIdx] = targetSeat;
+
+    const targetDesc = targetSeat ? targetSeat.name : 'boş koltuğa';
+    this.addSystemMessage(`${mySeat.name}, ${targetSeatIdx + 1}. koltuğa geçti (${targetDesc}).`);
+    return { success: true, seatIndex: targetSeatIdx };
+  }
+
   updatePlayerAvatar(socketId, avatar) {
     if (!avatar) return false;
     const seat = this.seats.find(s => s && s.id === socketId);

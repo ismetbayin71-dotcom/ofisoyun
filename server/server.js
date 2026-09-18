@@ -165,6 +165,16 @@ io.on('connection', (socket) => {
     broadcastLobbyState(room);
   });
 
+  // Switch Seat
+  socket.on('lobby:switchSeat', ({ roomId, targetSeatIndex }) => {
+    const room = roomId ? roomManager.getRoom(roomId) : roomManager.getRoomBySocketId(socket.id);
+    if (!room) return;
+    const res = room.switchSeat(socket.id, targetSeatIndex);
+    if (res.success) {
+      broadcastLobbyState(room);
+    }
+  });
+
   // Start Game
   socket.on('lobby:startGame', ({ roomId }, callback) => {
     const room = roomManager.getRoom(roomId);

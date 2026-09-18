@@ -11,6 +11,7 @@ export const WaitingRoom = ({ roomState, currentSocketId, onLeave }) => {
 
   const isHost = roomState.hostId === currentSocketId;
   const mySeat = roomState.seats.find(s => s && s.id === currentSocketId);
+  const mySeatIdx = roomState.seats.findIndex(s => s && s.id === currentSocketId);
   const isReady = mySeat ? mySeat.isReady : false;
   const totalOccupied = roomState.seats.filter(s => s !== null).length;
   const canStart = totalOccupied === 4;
@@ -23,6 +24,10 @@ export const WaitingRoom = ({ roomState, currentSocketId, onLeave }) => {
 
   const handleToggleReady = () => {
     network.emit('lobby:setReady', { roomId: roomState.id, isReady: !isReady });
+  };
+
+  const handleSwitchSeat = (seatIdx) => {
+    network.emit('lobby:switchSeat', { roomId: roomState.id, targetSeatIndex: seatIdx });
   };
 
   const handleAddBot = (seatIdx) => {
@@ -49,6 +54,34 @@ export const WaitingRoom = ({ roomState, currentSocketId, onLeave }) => {
     });
   };
 
+  // Relative seating positions based on current player
+  const oppositeSeatIdx = mySeatIdx !== -1 ? (mySeatIdx + 2) % 4 : 2;
+  const leftSeatIdx = mySeatIdx !== -1 ? (mySeatIdx + 3) % 4 : 3;
+  const rightSeatIdx = mySeatIdx !== -1 ? (mySeatIdx + 1) % 4 : 1;
+
+  const oppositePlayer = roomState.seats[oppositeSeatIdx];
+  const leftPlayer = roomState.seats[leftSeatIdx];
+  const rightPlayer = roomState.seats[rightSeatIdx];
+
+  const getSeatRelation = (idx) => {
+    if (mySeatIdx === -1) {
+      return { label: `Koltuk ${idx + 1}`, badgeClass: 'badge-neutral', icon: '🪑' };
+    }
+    const offset = (idx - mySeatIdx + 4) % 4;
+    switch (offset) {
+      case 0:
+        return { label: 'Siz (Güney)', badgeClass: 'badge-me', icon: '👤' };
+      case 1:
+        return { label: 'Sağınız (Doğu)', badgeClass: 'badge-right', icon: '➡️' };
+      case 2:
+        return { label: 'Tam Karşınız (Kuzey)', badgeClass: 'badge-opposite', icon: '🎯' };
+      case 3:
+        return { label: 'Solunuz (Batı)', badgeClass: 'badge-left', icon: '⬅️' };
+      default:
+        return { label: `Koltuk ${idx + 1}`, badgeClass: 'badge-neutral', icon: '🪑' };
+    }
+  };
+
   return (
     <div className="lobby-container" style={{ justifyContent: 'center' }}>
       <div className="waiting-room">
@@ -69,12 +102,58 @@ export const WaitingRoom = ({ roomState, currentSocketId, onLeave }) => {
           </div>
         </div>
 
+        {/* Table Perspective & Seating Arrangement */}
+        <div className="table-perspective-container">
+          <div className="table-perspective-header">
+            <span className="perspective-header-title">📍 Masadaki Yeriniz & Karşınızdaki Rakipler</span>
+            <span className="perspective-header-hint">
+              {mySeatIdx !== -1 ? `Şu an ${mySeatIdx + 1}. koltuktadısınız. Koltuklardaki butona tıklayarak yer değiştirebilirsiniz.` : 'Bir koltuk seçiniz.'}
+            </span>
+          </div>
+          <div className="table-perspective-grid">
+            <div className="perspective-card perspective-card-opp">
+              <div className="perspective-badge">🎯 TAM KARŞINIZ</div>
+              <strong className="perspective-name">
+                {oppositePlayer ? oppositePlayer.name : 'Boş Koltuk'}
+              </strong>
+              <span className="perspective-sub">
+                {oppositePlayer ? (oppositePlayer.isBot ? '🤖 Yapay Zeka' : '👤 Rakip Oyuncu') : 'Henüz kimse oturmadı'}
+              </span>
+            </div>
+
+            <div className="perspective-card perspective-card-left">
+              <div className="perspective-badge">⬅️ SOLUNUZDAKİ (Taş Çekeceğiniz)</div>
+              <strong className="perspective-name">
+                {leftPlayer ? leftPlayer.name : 'Boş Koltuk'}
+              </strong>
+              <span className="perspective-sub">
+                {leftPlayer ? (leftPlayer.isBot ? '🤖 Yapay Zeka' : '👤 Rakip Oyuncu') : 'Henüz kimse oturmadı'}
+              </span>
+            </div>
+
+            <div className="perspective-card perspective-card-right">
+              <div className="perspective-badge">➡️ SAĞINIZDAKİ (Taş Atacağınız)</div>
+              <strong className="perspective-name">
+                {rightPlayer ? rightPlayer.name : 'Boş Koltuk'}
+              </strong>
+              <span className="perspective-sub">
+                {rightPlayer ? (rightPlayer.isBot ? '🤖 Yapay Zeka' : '👤 Rakip Oyuncu') : 'Henüz kimse oturmadı'}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* 4 Seats */}
         <div className="seats-grid">
           {roomState.seats.map((seat, idx) => {
-            const seatTitles = ['Güney (Siz)', 'Batı', 'Kuzey', 'Doğu'];
+            const relation = getSeatRelation(idx);
+            const isMe = seat && seat.id === currentSocketId;
             return (
-              <div key={idx} className={`seat-card ${seat ? 'occupied' : ''}`}>
+              <div key={idx} className={`seat-card ${seat ? 'occupied' : ''} ${isMe ? 'is-my-seat' : ''}`}>
+                <div className={`seat-position-badge ${relation.badgeClass}`}>
+                  {relation.icon} {relation.label}
+                </div>
+
                 {seat ? (
                   <>
                     <PlayerAvatar
@@ -89,10 +168,10 @@ export const WaitingRoom = ({ roomState, currentSocketId, onLeave }) => {
                       {seat.isHost && <Shield size={13} color="#e5b94c" style={{ marginLeft: 4, display: 'inline' }} />}
                     </div>
                     <div className="seat-role">
-                      {seat.isBot ? 'Yapay Zeka' : (seat.id === currentSocketId ? 'Siz' : 'Oyuncu')}
+                      {seat.isBot ? 'Yapay Zeka' : (isMe ? 'Siz' : 'Oyuncu')}
                     </div>
 
-                    <div style={{ marginTop: 'auto' }}>
+                    <div style={{ marginTop: 6, marginBottom: 6 }}>
                       {seat.isReady ? (
                         <span className="ready-badge">Hazır</span>
                       ) : (
@@ -100,10 +179,19 @@ export const WaitingRoom = ({ roomState, currentSocketId, onLeave }) => {
                       )}
                     </div>
 
+                    {!isMe && (
+                      <button
+                        className="btn-seat-switch"
+                        onClick={() => handleSwitchSeat(idx)}
+                        title="Bu koltuğa geç"
+                      >
+                        🔄 {seat.isBot ? 'Botla Yer Değiş' : 'Yer Değiştir'}
+                      </button>
+                    )}
+
                     {isHost && seat.isBot && (
                       <button
-                        className="btn-danger"
-                        style={{ marginTop: 8 }}
+                        className="btn-danger-sm"
                         onClick={() => handleRemoveBot(idx)}
                       >
                         Botu Kaldır
@@ -112,18 +200,24 @@ export const WaitingRoom = ({ roomState, currentSocketId, onLeave }) => {
                   </>
                 ) : (
                   <>
-                    <div style={{ color: '#64748b', marginBottom: 12 }}>
+                    <div style={{ color: '#64748b', marginBottom: 8, marginTop: 8 }}>
                       <UserPlus size={36} />
                     </div>
                     <div style={{ color: '#94a3b8', fontWeight: 600, marginBottom: 12 }}>Boş Koltuk</div>
 
+                    <button
+                      className="btn-seat-switch btn-seat-sit"
+                      onClick={() => handleSwitchSeat(idx)}
+                    >
+                      🪑 Buraya Otur
+                    </button>
+
                     {isHost && (
                       <button
-                        className="btn-secondary"
-                        style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                        className="btn-secondary-sm"
                         onClick={() => handleAddBot(idx)}
                       >
-                        <Bot size={14} style={{ marginRight: 4 }} />
+                        <Bot size={13} style={{ marginRight: 4 }} />
                         Bot Ekle
                       </button>
                     )}

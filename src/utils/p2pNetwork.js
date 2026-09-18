@@ -147,6 +147,12 @@ class P2PNetwork {
         break;
       }
 
+      case 'lobby:switchSeat': {
+        this.localRoom.switchSeat(conn.peer, data.targetSeatIndex);
+        this.broadcastState();
+        break;
+      }
+
       case 'game:drawTile': {
         if (!this.localRoom.game) return;
         const res = this.localRoom.game.drawTile(conn.peer, data.fromDiscard);
@@ -329,6 +335,10 @@ class P2PNetwork {
     } else if (event === 'lobby:removeBot') {
       this.localRoom.removeBot(data.seatIndex);
       this.broadcastState();
+    } else if (event === 'lobby:switchSeat') {
+      const res = this.localRoom.switchSeat(this.myId, data.targetSeatIndex);
+      this.broadcastState();
+      if (callback) callback(res);
     } else if (event === 'lobby:startGame') {
       const res = this.localRoom.startGame();
       this.broadcastState();

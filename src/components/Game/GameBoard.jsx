@@ -515,20 +515,8 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
       {/* PROMINENT TURN STATUS BANNER */}
       <div className="turn-banner-container" style={{ marginTop: 6 }}>
         {isMyTurn ? (
-          <div className="turn-banner my-turn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: '1.5rem' }}>🎯</span>
-              <div>
-                <strong>SIRA SİZDE!</strong>{' '}
-                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                  {!hasDrawn
-                    ? 'Ortadaki desteden veya solunuzdaki oyuncudan taş çekiniz.'
-                    : (gameType === '101' && gameState.justDrawnFromDiscard && !viewer?.hasOpened)
-                      ? '⚠️ Yandan taş aldınız: Taş atmak için elinizi açmalısınız (101 barajı).'
-                      : 'Taşınızı çektiniz. İşe yaramayan bir taşı atın veya per açın/bitin.'}
-                </span>
-              </div>
-            </div>
+          <div className="turn-banner my-turn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <span style={{ fontSize: '1.05rem', fontWeight: 900, letterSpacing: '0.8px' }}>SIRA SİZDE</span>
 
             {gameType === '101' && hasDrawn && gameState.justDrawnFromDiscard && !viewer?.hasOpened && (
               <button
@@ -537,9 +525,9 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                   borderColor: '#f59e0b',
                   color: '#f59e0b',
                   fontWeight: 800,
-                  fontSize: '0.85rem',
+                  fontSize: '0.82rem',
                   background: 'rgba(0, 0, 0, 0.45)',
-                  padding: '6px 14px',
+                  padding: '4px 10px',
                   borderRadius: 8,
                   whiteSpace: 'nowrap'
                 }}
@@ -579,6 +567,12 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
       >
         {/* TOP OPPONENT */}
         <div className="opponent-top">
+          <div className="discard-slot opponent-top-discard">
+            {getDiscardForSeat(topOpponent.seatIndex) && (
+              <Tile tile={getDiscardForSeat(topOpponent.seatIndex)} okeyInfo={okeyInfo} mini />
+            )}
+          </div>
+
           {topOpponent.player && (
             <div className={`opponent-tag ${turnIndex === topOpponent.seatIndex ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
               <div className="seat-avatar-wrapper">
@@ -615,11 +609,6 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
               )}
             </div>
           )}
-          <div className="discard-slot" style={{ marginTop: 6 }}>
-            {getDiscardForSeat(topOpponent.seatIndex) && (
-              <Tile tile={getDiscardForSeat(topOpponent.seatIndex)} okeyInfo={okeyInfo} mini />
-            )}
-          </div>
         </div>
 
         {/* TOP-RIGHT CORNER: SYNCHRONIZED YOUTUBE TV / MUSIC PLAYER */}
@@ -708,11 +697,6 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           {/* 101 Table Opened Pers Area: Spacious 4-Quadrant Velvet Table */}
           {gameType === '101' && (
             <div className="table-felt-zone">
-              {selectedProcessTile && (
-                <div className="process-guide-banner">
-                  👉 Seçilen Taş: <strong style={{ color: '#fff' }}>{selectedProcessTile.color.toUpperCase()} {selectedProcessTile.value}</strong> — İşlemek istediğiniz pere tıklayın veya taşı o pere sürükleyin!
-                </div>
-              )}
               <div className="table-4quadrant-grid">
                 {tableQuadrants.map(quad => (
                   <div
