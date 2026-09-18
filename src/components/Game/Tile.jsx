@@ -27,7 +27,7 @@ export const Tile = ({
 
   return (
     <div
-      className={`tile-item ${colorClass} ${selected ? 'selected' : ''} ${mini ? 'mini' : ''} ${isUseful ? 'is-useful' : ''} ${className}`}
+      className={`tile-item ${colorClass} ${selected ? 'selected' : ''} ${mini ? 'mini' : ''} ${isUseful ? 'is-useful' : ''} ${isWildOkey ? 'is-wild-okey' : ''} ${className}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       draggable={draggable}
@@ -37,8 +37,8 @@ export const Tile = ({
       onDragEnd={onDragEnd}
       title={tile.isFakeJoker ? 'Sahte Okey (Joker ★)' : isWildOkey ? 'Okey (Joker)' : `${tile.color} ${tile.value}`}
     >
-      {/* Wildcard Okey Star Badge */}
-      {isWildOkey && <span className="okey-wildcard-star" style={{ pointerEvents: 'none' }}>★</span>}
+      {/* Wildcard Okey Badge */}
+      {isWildOkey && <span className="okey-wildcard-badge" style={{ pointerEvents: 'none' }}>OKEY</span>}
 
       {/* Sahte Okey: Yıldız göster */}
       {tile.isFakeJoker ? (

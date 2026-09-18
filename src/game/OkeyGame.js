@@ -25,6 +25,7 @@ export class OkeyGame {
     this.lastAction = null;
     this.winner = null;
     this.scores = [0, 0, 0, 0];
+    this.roundHistory = [];
   }
 
   startNewRound() {
@@ -161,14 +162,27 @@ export class OkeyGame {
 
         this.scores[pIdx] += winPoints;
         this.status = 'round_ended';
+        const roundPenalties = this.players.map((_, idx) => (idx === pIdx ? `+${winPoints}` : '0'));
         this.winner = {
           playerIndex: pIdx,
           name: player.name,
           points: winPoints,
           finishType,
+          roundPenalties,
           discardedTile,
-          hand: remainingHand
+          hand: remainingHand,
+          totalScores: [...this.scores]
         };
+
+        this.roundHistory.push({
+          round: this.currentRound,
+          winnerIdx: pIdx,
+          winnerName: player.name,
+          finishType,
+          points: winPoints,
+          penalties: roundPenalties,
+          scores: [...this.scores]
+        });
 
         this.lastAction = {
           type: 'GAME_WON',
@@ -217,6 +231,7 @@ export class OkeyGame {
       okeyInfo: this.okeyInfo,
       remainingTiles: this.deck ? this.deck.remainingCount() : 0,
       scores: this.scores,
+      roundHistory: this.roundHistory,
       winner: this.winner,
       lastAction: this.lastAction,
       discardPiles: this.discardPiles.map(pile => ({

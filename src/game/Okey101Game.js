@@ -25,6 +25,7 @@ export class Okey101Game {
     this.okeyInfo = null;
     this.discardPiles = [[], [], [], []];
     this.scores = [0, 0, 0, 0];
+    this.roundHistory = [];
 
     this.openedHands = [null, null, null, null];
     this.tablePers = [];
@@ -124,14 +125,17 @@ export class Okey101Game {
           };
         }
       } else if (openerType === 'pairs') {
+        const canProcess = this.tablePers.some(
+          p => !p.isPair && RuleValidator.canProcessTile(candidateTile, p.tiles, this.okeyInfo)
+        );
         const { pairs } = RuleValidator.find101Pairs(candidateHand, this.okeyInfo);
         const formsNewPair = pairs.some(pair => pair.some(t => t.id === candidateTile.id));
-        if (!formsNewPair) {
+        if (!formsNewPair && !canProcess) {
           return {
             allowed: false,
             message:
               `101 Okey Kuralı:\n\n` +
-              `Çift açmış bir oyuncu, yandan taşı sadece elindeki bir taşla yeni bir çift oluşturabiliyorsa alabilir.`
+              `Çift açmış bir oyuncu, yandan taşı masadaki bir pere işleyebiliyorsa veya elindeki bir taşla yeni bir çift oluşturabiliyorsa alabilir.`
           };
         }
       }
@@ -478,14 +482,6 @@ export class Okey101Game {
       return { success: false, message: 'Hedef per masada bulunamadı.' };
     }
 
-    // 101 Rule: A player who opened pairs CANNOT process onto runs/groups!
-    if (this.openedHands[pIdx].type === 'pairs') {
-      return {
-        success: false,
-        message: '101 Kuralı: Çift açan oyuncular serilere taş işleyemez! Sadece açılmış çiftlere işleme yapabilirsiniz.'
-      };
-    }
-
     // 101 Rule: Single tile cannot be processed into a 2-tile pair!
     if (targetPer.isPair) {
       return {
@@ -586,14 +582,28 @@ export class Okey101Game {
     }
     this.scores[winnerIdx] += winnerBonus;
 
+    const finishTypeName = isOkeyDiscard
+      ? 'Okey Atıp Bitiş!'
+      : (winnerOpenedPairs ? 'Çifte Bitiş!' : 'Normal Bitiş');
+
     this.winner = {
       playerIndex: winnerIdx,
       name: this.players[winnerIdx].name,
       finalDiscardTile,
       isOkeyDiscard,
+      finishType: finishTypeName,
       roundPenalties,
       totalScores: [...this.scores]
     };
+
+    this.roundHistory.push({
+      round: this.currentRound,
+      winnerIdx,
+      winnerName: this.players[winnerIdx].name,
+      finishType: finishTypeName,
+      penalties: [...roundPenalties],
+      scores: [...this.scores]
+    });
 
     this.lastAction = {
       type: 'ROUND_WON_101',
@@ -618,9 +628,19 @@ export class Okey101Game {
 
     this.winner = {
       noTiles: true,
+      finishType: 'Deste Bitti (Berabere)',
       roundPenalties,
       totalScores: [...this.scores]
     };
+
+    this.roundHistory.push({
+      round: this.currentRound,
+      winnerIdx: -1,
+      winnerName: 'Deste Bitti',
+      finishType: 'Deste Bitti (Berabere)',
+      penalties: [...roundPenalties],
+      scores: [...this.scores]
+    });
 
     this.lastAction = {
       type: 'ROUND_DRAW_101',
@@ -654,6 +674,7 @@ export class Okey101Game {
       okeyInfo: this.okeyInfo,
       remainingTiles: this.deck ? this.deck.remainingCount() : 0,
       scores: this.scores,
+      roundHistory: this.roundHistory,
       winner: this.winner,
       lastAction: this.lastAction,
       highestOpenedPoints: this.highestOpenedPoints,

@@ -204,9 +204,8 @@ export class BotAI {
       keepSearching = false;
 
       for (const per of game.tablePers) {
-        // Pair openers cannot process onto runs; run openers cannot process onto pairs
-        if (openerType === 'pairs' && !per.isPair) continue;
-        if (openerType === 'runs' && per.isPair) continue;
+        // Single tiles cannot be processed onto pairs
+        if (per.isPair) continue;
 
         for (let i = 0; i < botPlayer.hand.length; i++) {
           const tile = botPlayer.hand[i];

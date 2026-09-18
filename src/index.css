@@ -863,18 +863,21 @@ input, select {
   margin-top: 1px !important;
 }
 
-.quadrant-pers-container .tile-item .okey-wildcard-star {
-  font-size: 0.45rem !important;
+.quadrant-pers-container .tile-item .okey-wildcard-badge {
+  font-size: 0.36rem !important;
   top: 1px !important;
   right: 1px !important;
+  padding: 0 2px !important;
 }
 
 .quadrant-pers-container .tile-item .fake-joker-star {
   font-size: 1.05rem !important;
+  color: #7c3aed !important;
 }
 
 .quadrant-pers-container .tile-item .fake-joker-label {
   font-size: 0.3rem !important;
+  color: #7c3aed !important;
   margin-top: -2px !important;
   letter-spacing: 0.2px !important;
 }
@@ -1179,45 +1182,70 @@ input, select {
 }
 .tile-yellow .tile-dot { background-color: var(--tile-yellow); }
 
-/* Sahte Okey tile rengi - mor/lila gradient */
+/* Sahte Okey tile rengi - Kemik/beyaz taş zemini, mor yıldız */
 .tile-none {
-  background: linear-gradient(160deg, #2d1b4e 0%, #1e1035 60%, #150b28 100%) !important;
-  border: 1.5px solid rgba(167, 139, 250, 0.5) !important;
-  box-shadow: var(--tile-shadow), 0 0 12px rgba(139, 92, 246, 0.4) !important;
+  background: var(--tile-bg) !important;
+  border: 1px solid #d4c5a0 !important;
+  border-bottom: 3px solid #b3a27b !important;
+  box-shadow: var(--tile-shadow) !important;
 }
 
-/* Star icon badge on Okey tile */
-.okey-wildcard-star {
+/* Okey olan taşın üstünde OKEY rozeti */
+.okey-wildcard-badge {
   position: absolute;
   top: 3px;
   right: 3px;
-  font-size: 0.65rem;
-  color: var(--gold-accent);
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5));
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #1a0f00;
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  border: 0.5px solid rgba(255, 255, 255, 0.6);
+  line-height: 1.1;
+  text-transform: uppercase;
+  z-index: 10;
 }
 
-/* Sahte Okey yıldız badge */
+.tile-item.mini .okey-wildcard-badge {
+  top: 1px;
+  right: 1px;
+  font-size: 0.38rem;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.tile-item.is-wild-okey {
+  outline: 2px solid rgba(245, 158, 11, 0.85);
+  box-shadow: var(--tile-shadow), 0 0 12px rgba(245, 158, 11, 0.45);
+}
+
+/* Sahte Okey yıldız badge - MOR RENK */
 .fake-joker-star {
   font-size: 2.2rem;
   line-height: 1;
-  filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.9));
+  color: #7c3aed;
+  filter: drop-shadow(0 0 5px rgba(124, 58, 237, 0.7));
   animation: fakeJokerPulse 2s ease-in-out infinite;
 }
 
 .tile-item.mini .fake-joker-star {
   font-size: 1.5rem;
+  color: #7c3aed;
 }
 
 @keyframes fakeJokerPulse {
-  0%   { filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.7)); }
-  50%  { filter: drop-shadow(0 0 12px rgba(167, 139, 250, 1)); }
-  100% { filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.7)); }
+  0%   { filter: drop-shadow(0 0 3px rgba(124, 58, 237, 0.5)); transform: scale(1); }
+  50%  { filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.95)); transform: scale(1.05); }
+  100% { filter: drop-shadow(0 0 3px rgba(124, 58, 237, 0.5)); transform: scale(1); }
 }
 
 .fake-joker-label {
   font-size: 0.5rem;
   font-weight: 900;
-  color: #a78bfa;
+  color: #7c3aed;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   margin-top: -2px;
@@ -1225,11 +1253,12 @@ input, select {
 
 .tile-item.mini .fake-joker-label {
   font-size: 0.42rem;
+  color: #7c3aed;
 }
 
 .fake-joker-icon {
   font-size: 1.4rem;
-  color: #6366f1;
+  color: #7c3aed;
 }
 
 /* =======================================================
@@ -1576,50 +1605,141 @@ input, select {
   box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9);
 }
 
+.modal-content.score-cetele-modal {
+  max-width: 680px;
+  width: 95%;
+  padding: 22px 26px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .modal-content h2 {
   font-size: 1.8rem;
   color: var(--gold-accent);
   margin-bottom: 12px;
 }
 
-.score-table {
+/* Çetele Score Sheet Table */
+.cetele-table-container {
   width: 100%;
-  margin: 20px 0;
+  max-height: 380px;
+  overflow-y: auto;
+  margin: 12px 0 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(229, 185, 76, 0.35);
+  background: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(229, 185, 76, 0.35) transparent;
+}
+
+.cetele-table-container::-webkit-scrollbar {
+  width: 4px;
+}
+.cetele-table-container::-webkit-scrollbar-thumb {
+  background: rgba(229, 185, 76, 0.35);
+  border-radius: 4px;
+}
+
+.cetele-table {
+  width: 100%;
   border-collapse: collapse;
+  text-align: center;
 }
 
-.score-table th, .score-table td {
-  padding: 10px 14px;
-  text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.cetele-table th {
+  background: rgba(14, 34, 22, 0.95);
+  color: #e5b94c;
+  padding: 10px 8px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  border-bottom: 2px solid rgba(229, 185, 76, 0.4);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-.score-table th {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  text-transform: uppercase;
+.cetele-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.92rem;
+  color: #e2e8f0;
+}
+
+.cetele-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cetele-table tr.cetele-total-row {
+  background: rgba(229, 185, 76, 0.15);
+  border-top: 2px solid rgba(229, 185, 76, 0.5);
+  font-weight: 900;
+}
+
+.cetele-table tr.cetele-total-row td {
+  font-size: 1.1rem;
+  color: #fff;
+  padding: 12px 8px;
+}
+
+.cetele-penalty-winner {
+  color: #34d399 !important;
+  font-weight: 800;
+}
+
+.cetele-penalty-bad {
+  color: #f87171 !important;
+  font-weight: 700;
+}
+
+.cetele-penalty-normal {
+  color: #fbbf24 !important;
+}
+
+.cetele-leader-badge {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #1a0f00;
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 999px;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.bot-pill-mini {
+  background: rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 /* =======================================================
-   INTERACTIVE GAME SPEECH BUBBLES
+   2X ENLARGED INTERACTIVE GAME SPEECH BUBBLES
    ======================================================= */
 .speech-bubble {
   position: absolute;
-  background: linear-gradient(135deg, rgba(15, 30, 22, 0.97) 0%, rgba(8, 20, 14, 0.98) 100%);
-  border: 1.5px solid #e5b94c;
+  background: linear-gradient(135deg, rgba(12, 28, 20, 0.98) 0%, rgba(6, 16, 11, 0.99) 100%);
+  border: 2.5px solid #e5b94c;
   color: #ffffff;
-  padding: 6px 14px;
-  border-radius: 16px 16px 16px 4px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.75), 0 0 15px rgba(229, 185, 76, 0.35);
+  padding: 10px 20px;
+  border-radius: 20px 20px 20px 6px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85), 0 0 20px rgba(229, 185, 76, 0.45);
   pointer-events: none;
-  z-index: 120;
+  z-index: 150;
   white-space: nowrap;
-  max-width: 240px;
+  max-width: 380px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   animation: speechBubbleAnim 5s ease-in-out forwards;
 }
 
@@ -1647,11 +1767,11 @@ input, select {
 }
 
 .speech-bubble.emoji-bubble {
-  font-size: 1.7rem;
-  padding: 4px 12px;
-  border-radius: 20px;
-  background: rgba(10, 24, 16, 0.96);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 20px rgba(229, 185, 76, 0.5);
+  font-size: 2.8rem;
+  padding: 6px 18px;
+  border-radius: 26px;
+  background: rgba(8, 20, 14, 0.98);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.9), 0 0 25px rgba(229, 185, 76, 0.6);
 }
 
 .speech-bubble-content {
@@ -1659,104 +1779,84 @@ input, select {
   text-overflow: ellipsis;
   white-space: normal;
   word-break: break-word;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
-/* Positioning for Quadrant Bubbles (101 Table) */
-.quadrant-speech-bubble {
-  position: relative;
-  margin-left: 10px;
-  display: inline-flex;
-  border-radius: 4px 14px 14px 14px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 10px rgba(229, 185, 76, 0.4);
-}
-
-.quadrant-speech-bubble::before {
-  content: '';
-  position: absolute;
-  left: -6px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-right: 6px solid #e5b94c;
-}
-
-/* Positioning for Opponent Bubbles */
+/* Positioning for Opponent Bubbles (scaled up) */
 .bubble-top {
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  margin-top: 10px;
-  border-radius: 4px 16px 16px 16px;
+  margin-top: 12px;
+  border-radius: 6px 20px 20px 20px;
 }
 
 .bubble-top::before {
   content: '';
   position: absolute;
-  top: -7px;
+  top: -10px;
   left: 50%;
   transform: translateX(-50%);
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-bottom: 7px solid #e5b94c;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 10px solid #e5b94c;
 }
 
 .bubble-left {
   left: 100%;
   top: 50%;
   transform: translateY(-50%);
-  margin-left: 14px;
-  border-radius: 4px 16px 16px 16px;
+  margin-left: 16px;
+  border-radius: 6px 20px 20px 20px;
 }
 
 .bubble-left::before {
   content: '';
   position: absolute;
-  left: -7px;
+  left: -10px;
   top: 50%;
   transform: translateY(-50%);
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-  border-right: 7px solid #e5b94c;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-right: 10px solid #e5b94c;
 }
 
 .bubble-right {
   right: 100%;
   top: 50%;
   transform: translateY(-50%);
-  margin-right: 14px;
-  border-radius: 16px 4px 16px 16px;
+  margin-right: 16px;
+  border-radius: 20px 6px 20px 20px;
 }
 
 .bubble-right::before {
   content: '';
   position: absolute;
-  right: -7px;
+  right: -10px;
   top: 50%;
   transform: translateY(-50%);
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-  border-left: 7px solid #e5b94c;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-left: 10px solid #e5b94c;
 }
 
 .bubble-viewer {
   left: 100%;
   top: 50%;
   transform: translateY(-50%);
-  margin-left: 14px;
-  border-radius: 4px 16px 16px 16px;
+  margin-left: 16px;
+  border-radius: 6px 20px 20px 20px;
 }
 
 .bubble-viewer::before {
   content: '';
   position: absolute;
-  left: -7px;
+  left: -10px;
   top: 50%;
   transform: translateY(-50%);
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-  border-right: 7px solid #e5b94c;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-right: 10px solid #e5b94c;
 }
 
 /* =======================================================

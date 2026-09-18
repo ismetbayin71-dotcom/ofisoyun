@@ -30,6 +30,7 @@ export const TileRack = ({
   onDrawDeck,
   tablePers = [],
   showUseful = true,
+  onAutoProcess,
 }) => {
   // 30-slot authentic Okey rack (15 top, 15 bottom)
   const [slots, setSlots] = useState(() => {
@@ -486,6 +487,10 @@ export const TileRack = ({
 
   // Auto process: find first useful tile and emit processTile
   const handleAutoProcess = () => {
+    if (onAutoProcess) {
+      onAutoProcess();
+      return;
+    }
     if (!isMyTurn || !hasDrawn) {
       alert('Önce taş çekmelisiniz!');
       return;

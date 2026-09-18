@@ -270,6 +270,44 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
     });
   };
 
+  // Auto Process Tile onto Table (101 Okey)
+  const handleAutoProcess = () => {
+    if (!isMyTurn || !hasDrawn) {
+      alert('Önce desteden veya solunuzdaki oyuncudan taş çekmelisiniz!');
+      return;
+    }
+    if (!viewer?.hasOpened) {
+      alert('Taş işlemek için önce elinizi (seri veya çift) açmış olmalısınız!');
+      return;
+    }
+    if (!viewer?.hand || viewer.hand.length <= 1) {
+      alert('101 Kuralı: Yere taş atmak için elinizde en az 1 taş kalmalıdır!');
+      return;
+    }
+
+    // Find first processable tile and its matching per
+    for (const tile of viewer.hand) {
+      for (const per of tablePers) {
+        if (!per.isPair && RuleValidator.canProcessTile(tile, per.tiles, okeyInfo)) {
+          network.emit('game:processTile', {
+            roomId: gameState.roomId,
+            tileId: tile.id,
+            targetPerId: per.id
+          }, (res) => {
+            if (res.success) {
+              sound.playTileClick();
+              setSelectedProcessTile(null);
+            } else {
+              alert(res.message || 'Taş işlenemedi.');
+            }
+          });
+          return;
+        }
+      }
+    }
+    alert('Elinizde masadaki serilere işlenebilecek uygun taş bulunamadı.');
+  };
+
   // Next round
   const handleNextRound = () => {
     network.emit('game:nextRound', { roomId: gameState.roomId });
@@ -548,7 +586,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                   avatar={topOpponent.player.avatar}
                   isBot={topOpponent.player.isBot}
                   name={topOpponent.player.name}
-                  size={42}
+                  size={52}
                   className="player-tag-avatar"
                 />
               </div>
@@ -605,7 +643,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                   avatar={leftOpponent.player.avatar}
                   isBot={leftOpponent.player.isBot}
                   name={leftOpponent.player.name}
-                  size={42}
+                  size={52}
                   className="player-tag-avatar"
                 />
               </div>
@@ -695,22 +733,6 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                           {quad.player?.name || 'Oyuncu'}
                           {quad.isViewer ? ' (Siz)' : ''}
                         </strong>
-
-                        {(() => {
-                          const bubble = activeBubbles[quad.player?.name] || (quad.isViewer ? activeBubbles[viewer?.name] : null);
-                          if (!bubble) return null;
-                          return (
-                            <div
-                              className={`speech-bubble quadrant-speech-bubble ${
-                                isEmojiOnly(bubble.text) ? 'emoji-bubble' : ''
-                              }`}
-                            >
-                              <span className="speech-bubble-content">
-                                {bubble.text}
-                              </span>
-                            </div>
-                          );
-                        })()}
                       </div>
 
                       {quad.openedInfo ? (
@@ -794,7 +816,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                   avatar={rightOpponent.player.avatar}
                   isBot={rightOpponent.player.isBot}
                   name={rightOpponent.player.name}
-                  size={42}
+                  size={52}
                   className="player-tag-avatar"
                 />
               </div>
@@ -840,7 +862,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                   avatar={viewerAvatar}
                   isBot={false}
                   name={viewer.name}
-                  size={42}
+                  size={52}
                   className="player-tag-avatar"
                 />
               </div>
@@ -954,6 +976,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           indicator={indicator}
           onDrawDeck={() => handleDrawTile(false)}
           tablePers={tablePers}
+          onAutoProcess={handleAutoProcess}
         />
       )}
 
@@ -1020,6 +1043,8 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
           gameType={gameType}
           isHost={players[0]?.id === currentSocketId}
           onNextRound={handleNextRound}
+          currentRound={gameState.currentRound}
+          roundHistory={gameState.roundHistory || []}
         />
       )}
 
