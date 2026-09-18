@@ -66,6 +66,7 @@ function broadcastGameState(room) {
   for (const seat of room.seats) {
     if (seat && !seat.isBot) {
       const clientState = room.game.getClientState(seat.id);
+      clientState.chatMessages = [...(room.chatMessages || [])];
       io.to(seat.id).emit('game:state', clientState);
     }
   }
@@ -274,6 +275,11 @@ io.on('connection', (socket) => {
 
     const msg = room.addChatMessage(senderName, text.trim(), false);
     io.to(`room-${roomId}`).emit('chat:message', msg);
+    if (room.game) {
+      broadcastGameState(room);
+    } else {
+      broadcastLobbyState(room);
+    }
   });
 
   // Disconnect

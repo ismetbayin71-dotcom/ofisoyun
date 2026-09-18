@@ -263,12 +263,45 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
     network.emit('game:nextRound', { roomId: gameState.roomId });
   };
 
-  // Chat message
+  // Chat message & Emoji sending
   const handleSendMessage = (text) => {
+    if (!text) return;
+    const cleanText = text.trim();
+    if (!cleanText) return;
+    const sender = viewer?.name || 'Oyuncu';
+
+    // 1. Immediately activate speech bubble locally (Zero-latency instant display)
+    const localId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    lastProcessedMsgIdRef.current = localId;
+    if (bubbleTimersRef.current[sender]) {
+      clearTimeout(bubbleTimersRef.current[sender]);
+    }
+    try {
+      sound.playTileClick();
+    } catch (e) {}
+
+    setActiveBubbles(prev => ({
+      ...prev,
+      [sender]: { id: localId, text: cleanText }
+    }));
+
+    bubbleTimersRef.current[sender] = setTimeout(() => {
+      setActiveBubbles(prev => {
+        if (prev[sender]?.id === localId) {
+          const next = { ...prev };
+          delete next[sender];
+          return next;
+        }
+        return prev;
+      });
+      delete bubbleTimersRef.current[sender];
+    }, 5000);
+
+    // 2. Broadcast via network
     network.emit('chat:send', {
       roomId: gameState.roomId,
-      text,
-      senderName: viewer?.name || 'Oyuncu'
+      text: cleanText,
+      senderName: sender
     });
   };
 
@@ -303,6 +336,8 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
   }, [isMyTurn, hasDrawn, leftDiscardTile, gameType, viewer?.hand, viewer?.hasOpened, okeyInfo, minRequiredPoints, tablePers, gameState.openedHands]);
 
   const messagesList = gameState.chatMessages || chatMessages || [];
+  const lastMsg = messagesList.length > 0 ? messagesList[messagesList.length - 1] : null;
+  const lastMsgId = lastMsg?.id;
 
   // Speech bubbles triggered by chat messages & emojis (5s duration)
   const [activeBubbles, setActiveBubbles] = useState({});
@@ -347,7 +382,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         delete bubbleTimersRef.current[sender];
       }, 5000);
     }
-  }, [messagesList]);
+  }, [messagesList.length, lastMsgId]);
 
   useEffect(() => {
     return () => {
@@ -603,17 +638,21 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                           {quad.isViewer ? ' (Siz)' : ''}
                         </strong>
 
-                        {activeBubbles[quad.player?.name] && (
-                          <div
-                            className={`speech-bubble quadrant-speech-bubble ${
-                              isEmojiOnly(activeBubbles[quad.player?.name].text) ? 'emoji-bubble' : ''
-                            }`}
-                          >
-                            <span className="speech-bubble-content">
-                              {activeBubbles[quad.player?.name].text}
-                            </span>
-                          </div>
-                        )}
+                        {(() => {
+                          const bubble = activeBubbles[quad.player?.name] || (quad.isViewer ? activeBubbles[viewer?.name] : null);
+                          if (!bubble) return null;
+                          return (
+                            <div
+                              className={`speech-bubble quadrant-speech-bubble ${
+                                isEmojiOnly(bubble.text) ? 'emoji-bubble' : ''
+                              }`}
+                            >
+                              <span className="speech-bubble-content">
+                                {bubble.text}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {quad.openedInfo ? (
@@ -747,17 +786,21 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                 </div>
               </div>
 
-              {activeBubbles[viewer.name] && (
-                <div
-                  className={`speech-bubble opponent-speech-bubble bubble-viewer ${
-                    isEmojiOnly(activeBubbles[viewer.name].text) ? 'emoji-bubble' : ''
-                  }`}
-                >
-                  <span className="speech-bubble-content">
-                    {activeBubbles[viewer.name].text}
-                  </span>
-                </div>
-              )}
+              {(() => {
+                const bubble = activeBubbles[viewer?.name] || activeBubbles['Oyuncu'];
+                if (!bubble) return null;
+                return (
+                  <div
+                    className={`speech-bubble opponent-speech-bubble bubble-viewer ${
+                      isEmojiOnly(bubble.text) ? 'emoji-bubble' : ''
+                    }`}
+                  >
+                    <span className="speech-bubble-content">
+                      {bubble.text}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

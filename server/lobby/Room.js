@@ -212,7 +212,7 @@ export class Room {
       seats: this.seats,
       status: this.status,
       playerCount: this.seats.filter(s => s !== null).length,
-      chatMessages: this.chatMessages
+      chatMessages: [...this.chatMessages]
     };
   }
 }
