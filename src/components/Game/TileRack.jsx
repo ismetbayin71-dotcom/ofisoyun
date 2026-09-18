@@ -41,6 +41,8 @@ export const TileRack = ({
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(null);
   const [selectedFor101Ids, setSelectedFor101Ids] = useState([]);
   const [draggedSlot, setDraggedSlot] = useState(null);
+  const [justDrawnTileId, setJustDrawnTileId] = useState(null);
+  const justDrawnTimerRef = React.useRef(null);
 
   // Global drag-end safety listener: Prevents any tile from getting stuck in gray/dragging state
   useEffect(() => {
@@ -68,6 +70,14 @@ export const TileRack = ({
       // Find tiles in hand not yet placed in any slot
       const placedIds = new Set(newSlots.filter(Boolean).map(t => t.id));
       const unplacedTiles = (hand || []).filter(t => !placedIds.has(t.id));
+
+      // If exactly one new tile was added, trigger the glow animation
+      if (unplacedTiles.length === 1) {
+        const newTileId = unplacedTiles[0].id;
+        if (justDrawnTimerRef.current) clearTimeout(justDrawnTimerRef.current);
+        setJustDrawnTileId(newTileId);
+        justDrawnTimerRef.current = setTimeout(() => setJustDrawnTileId(null), 2000);
+      }
 
       let unplacedIdx = 0;
       for (let i = 0; i < 30 && unplacedIdx < unplacedTiles.length; i++) {
@@ -109,10 +119,28 @@ export const TileRack = ({
 
     sound.playTileClick();
     setSlots(prev => {
+      // Insert/shift: remove tile from source and insert at target, shifting others
       const copy = [...prev];
-      const temp = copy[sourceSlot];
-      copy[sourceSlot] = copy[targetSlotIdx];
-      copy[targetSlotIdx] = temp;
+      const [moved] = copy.splice(sourceSlot, 1, null); // pull out tile, leave null
+      // Now shift the row so there are no gaps between source and target
+      // Determine direction and shift within the same row
+      const sourceRow = Math.floor(sourceSlot / 15);
+      const targetRow = Math.floor(targetSlotIdx / 15);
+      if (sourceRow === targetRow) {
+        // Same row: remove the null left by source, insert tile at target
+        const rowStart = sourceRow * 15;
+        const rowSlice = copy.slice(rowStart, rowStart + 15);
+        // Remove the null at the source column within the row
+        const sourceCol = sourceSlot - rowStart;
+        const targetCol = targetSlotIdx - rowStart;
+        rowSlice.splice(sourceCol, 1); // remove the null hole
+        rowSlice.splice(targetCol, 0, moved); // insert tile at target
+        for (let i = 0; i < 15; i++) copy[rowStart + i] = rowSlice[i];
+      } else {
+        // Cross-row: just do a swap fallback (insert at target, place null at source)
+        copy[targetSlotIdx] = moved;
+        copy[sourceSlot] = null;
+      }
       return copy;
     });
 
@@ -148,10 +176,23 @@ export const TileRack = ({
 
     sound.playTileClick();
     setSlots(prev => {
+      // Insert/shift: remove from source, insert at target
       const copy = [...prev];
-      const temp = copy[sourceSlot];
-      copy[sourceSlot] = copy[targetIdx];
-      copy[targetIdx] = temp;
+      const [moved] = copy.splice(sourceSlot, 1, null);
+      const sourceRow = Math.floor(sourceSlot / 15);
+      const targetRow = Math.floor(targetIdx / 15);
+      if (sourceRow === targetRow) {
+        const rowStart = sourceRow * 15;
+        const rowSlice = copy.slice(rowStart, rowStart + 15);
+        const sourceCol = sourceSlot - rowStart;
+        const targetCol = targetIdx - rowStart;
+        rowSlice.splice(sourceCol, 1);
+        rowSlice.splice(targetCol, 0, moved);
+        for (let i = 0; i < 15; i++) copy[rowStart + i] = rowSlice[i];
+      } else {
+        copy[targetIdx] = moved;
+        copy[sourceSlot] = null;
+      }
       return copy;
     });
 
@@ -661,6 +702,7 @@ export const TileRack = ({
                 gameType === '101'
                   ? tile && selectedFor101Ids.includes(tile.id)
                   : selectedSlotIndex === slotIdx;
+              const isNewlyDrawn = tile && tile.id === justDrawnTileId;
 
               return (
                 <div
@@ -681,6 +723,7 @@ export const TileRack = ({
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, slotIdx)}
                       onDragEnd={handleDragEnd}
+                      className={isNewlyDrawn ? 'newly-drawn' : ''}
                     />
                   )}
                 </div>
@@ -700,6 +743,7 @@ export const TileRack = ({
                 gameType === '101'
                   ? tile && selectedFor101Ids.includes(tile.id)
                   : selectedSlotIndex === slotIdx;
+              const isNewlyDrawn = tile && tile.id === justDrawnTileId;
 
               return (
                 <div
@@ -720,6 +764,7 @@ export const TileRack = ({
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, slotIdx)}
                       onDragEnd={handleDragEnd}
+                      className={isNewlyDrawn ? 'newly-drawn' : ''}
                     />
                   )}
                 </div>
