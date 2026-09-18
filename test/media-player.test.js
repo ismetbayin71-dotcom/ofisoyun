@@ -95,4 +95,22 @@ room.skipMediaTrack();
 assert.strictEqual(room.mediaState.currentTrack, null);
 assert.strictEqual(room.mediaState.isPlaying, false);
 
-console.log('✓ Room media queue tests passed!');
+// Test Play / Pause Synchronization
+const track4 = { id: 't4', videoId: 'vid4', title: 'Senkron Testi', addedBy: 'Can' };
+room.addMediaTrack(track4);
+assert.strictEqual(room.mediaState.isPlaying, true, 'Newly added track should start playing');
+
+// Player 1 pauses the TV for everyone
+room.toggleMediaPlay(false);
+assert.strictEqual(room.mediaState.isPlaying, false, 'Should be paused for everyone');
+
+// Player 2 unpauses the TV
+room.toggleMediaPlay(true);
+assert.strictEqual(room.mediaState.isPlaying, true, 'Should resume playing for everyone');
+
+// Toggle without argument
+room.toggleMediaPlay();
+assert.strictEqual(room.mediaState.isPlaying, false, 'Should toggle to paused');
+
+console.log('✓ Room media queue & synchronized play/pause tests passed!');
+
