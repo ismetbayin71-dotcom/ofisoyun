@@ -78,11 +78,29 @@ const arrangeHand = [
   new Tile('k1', 'black', 1)
 ];
 const arranged101 = RuleValidator.autoArrangeRuns(arrangeHand, okeyInfo, '101');
-// In 101 mode, 12, 13, 1 should not be placed contiguously as a per with gap
-// specifically first 3 slots won't be [12, 13, 1] followed by null if not formed
 const arrangedClassic = RuleValidator.autoArrangeRuns(arrangeHand, okeyInfo, 'classic');
 console.assert(arrangedClassic[0].value === 12 && arrangedClassic[1].value === 13 && arrangedClassic[2].value === 1, 'Classic autoArrange creates wrap per');
 console.assert(!(arranged101[0]?.value === 12 && arranged101[1]?.value === 13 && arranged101[2]?.value === 1 && arranged101[3] === null), '101 autoArrange does NOT create wrap per');
 console.log('✓ autoArrangeRuns correctly distinguishes 101 from classic!');
 
+// Test: autoArrangeRuns groups optimal 12-12-12 and 9-10-11 matching findBest101Pers
+const okeyInfoGame = { color: 'yellow', value: 3 };
+const hand69 = [
+  new Tile('r9', 'red', 9),
+  new Tile('r10', 'red', 10),
+  new Tile('r11', 'red', 11),
+  new Tile('r12', 'red', 12),
+  new Tile('b1', 'blue', 1),
+  new Tile('y1', 'yellow', 1),
+  new Tile('r1', 'red', 1),
+  new Tile('y12', 'yellow', 12),
+  new Tile('b12', 'blue', 12)
+];
+const arranged69 = RuleValidator.autoArrangeRuns(hand69, okeyInfoGame, '101');
+// Row 1 should have 9-10-11, gap, 12-12-12, gap, 1-1-1
+const r1 = arranged69.slice(0, 11).map(t => t ? `${t.color[0]}${t.value}` : '__').join(' ');
+console.assert(r1.includes('r9 r10 r11') && r1.includes('r12 y12 b12'), 'Should arrange 12-12-12 and 9-10-11 together');
+console.log('✓ autoArrangeRuns successfully matches optimal pers (12-12-12 and 9-10-11)!');
+
 console.log('🎉 ALL 101 VALIDATION TESTS PASSED!');
+

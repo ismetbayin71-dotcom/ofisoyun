@@ -483,43 +483,106 @@ export class RuleValidator {
     const normals = hand.filter(t => !this.isWildOkey(t, okeyInfo));
     const wildcards = hand.filter(t => this.isWildOkey(t, okeyInfo));
 
-    // 1. Natural consecutive runs of 3+ (same color)
-    const byColor = { red: [], yellow: [], blue: [], black: [] };
-    for (const t of normals) {
-      if (byColor[t.color]) byColor[t.color].push(t);
-    }
-    for (const c in byColor) {
-      byColor[c].sort((a, b) => a.value - b.value);
-      const tiles = byColor[c];
-      let currentRun = [];
-      for (let i = 0; i < tiles.length; i++) {
-        const t = tiles[i];
-        if (usedIds.has(t.id)) continue;
-        if (currentRun.length === 0) {
-          currentRun.push(t);
-        } else {
-          const prev = currentRun[currentRun.length - 1];
-          if (t.value === prev.value + 1) {
-            currentRun.push(t);
-          } else if (t.value === prev.value) {
-            continue; // duplicate number, keep in reserve
-          } else {
-            if (currentRun.length >= 3) {
-              detectedPers.push([...currentRun]);
-              currentRun.forEach(item => usedIds.add(item.id));
+    if (gameType === '101') {
+      // 101 Okey: Use globally optimal pers from findBest101Pers so arranged layout
+      // matches the calculated point badge and "Otomatik Seri Aç" exactly.
+      const best = this.findBest101Pers(hand, okeyInfo);
+      for (const per of best.pers) {
+        detectedPers.push([...per]);
+        per.forEach(t => usedIds.add(t.id));
+      }
+
+      // Try to extend pers with unused tiles (e.g. 4th color for groups, or prepend/append for runs)
+      const unusedNormals = normals.filter(t => !usedIds.has(t.id));
+      for (const per of detectedPers) {
+        if (this.isValidGroup(per, okeyInfo)) {
+          if (per.length < 4) {
+            const val = per[0].value;
+            const colors = new Set(per.map(t => t.color));
+            const extra = unusedNormals.find(t => !usedIds.has(t.id) && t.value === val && !colors.has(t.color));
+            if (extra) {
+              per.push(extra);
+              usedIds.add(extra.id);
             }
-            currentRun = [t];
+          }
+        } else {
+          // Run: try prepend and append
+          const color = per[0].color;
+          let prepended = true;
+          while (prepended) {
+            prepended = false;
+            const firstVal = per[0].value;
+            if (firstVal > 1) {
+              const prev = unusedNormals.find(t => !usedIds.has(t.id) && t.color === color && t.value === firstVal - 1);
+              if (prev) {
+                per.unshift(prev);
+                usedIds.add(prev.id);
+                prepended = true;
+              }
+            }
+          }
+          let appended = true;
+          while (appended) {
+            appended = false;
+            const lastVal = per[per.length - 1].value;
+            if (lastVal < 13) {
+              const next = unusedNormals.find(t => !usedIds.has(t.id) && t.color === color && t.value === lastVal + 1);
+              if (next) {
+                per.push(next);
+                usedIds.add(next.id);
+                appended = true;
+              }
+            }
           }
         }
       }
-      if (currentRun.length >= 3) {
-        detectedPers.push([...currentRun]);
-        currentRun.forEach(item => usedIds.add(item.id));
-      }
-    }
 
-    // 2. Wrap runs: 11-12-13-1 or 12-13-1 (Allowed ONLY in classic/düz okey, NOT in 101!)
-    if (gameType !== '101') {
+      // Check if any remaining unused tiles can form additional valid runs or groups
+      const remainingUnused = hand.filter(t => !usedIds.has(t.id));
+      if (remainingUnused.length >= 3) {
+        const extraBest = this.findBest101Pers(remainingUnused, okeyInfo);
+        for (const per of extraBest.pers) {
+          detectedPers.push([...per]);
+          per.forEach(t => usedIds.add(t.id));
+        }
+      }
+    } else {
+      // 1. Natural consecutive runs of 3+ (same color)
+      const byColor = { red: [], yellow: [], blue: [], black: [] };
+      for (const t of normals) {
+        if (byColor[t.color]) byColor[t.color].push(t);
+      }
+      for (const c in byColor) {
+        byColor[c].sort((a, b) => a.value - b.value);
+        const tiles = byColor[c];
+        let currentRun = [];
+        for (let i = 0; i < tiles.length; i++) {
+          const t = tiles[i];
+          if (usedIds.has(t.id)) continue;
+          if (currentRun.length === 0) {
+            currentRun.push(t);
+          } else {
+            const prev = currentRun[currentRun.length - 1];
+            if (t.value === prev.value + 1) {
+              currentRun.push(t);
+            } else if (t.value === prev.value) {
+              continue; // duplicate number, keep in reserve
+            } else {
+              if (currentRun.length >= 3) {
+                detectedPers.push([...currentRun]);
+                currentRun.forEach(item => usedIds.add(item.id));
+              }
+              currentRun = [t];
+            }
+          }
+        }
+        if (currentRun.length >= 3) {
+          detectedPers.push([...currentRun]);
+          currentRun.forEach(item => usedIds.add(item.id));
+        }
+      }
+
+      // 2. Wrap runs: 11-12-13-1 or 12-13-1 (Allowed ONLY in classic/düz okey, NOT in 101!)
       for (const c in byColor) {
         const tiles = byColor[c].filter(t => !usedIds.has(t.id));
         const hasOne = tiles.find(t => t.value === 1);
@@ -532,67 +595,79 @@ export class RuleValidator {
           wrapPer.forEach(t => usedIds.add(t.id));
         }
       }
-    }
 
-    // 3. Groups of same number, different colors (3 or 4)
-    const byValue = {};
-    for (const t of normals) {
-      if (usedIds.has(t.id)) continue;
-      byValue[t.value] = byValue[t.value] || [];
-      byValue[t.value].push(t);
-    }
-    for (const val in byValue) {
-      const list = byValue[val];
-      const uniqueColors = [];
-      const seen = new Set();
-      for (const t of list) {
-        if (!seen.has(t.color)) {
-          uniqueColors.push(t);
-          seen.add(t.color);
+      // 3. Groups of same number, different colors (3 or 4)
+      const byValue = {};
+      for (const t of normals) {
+        if (usedIds.has(t.id)) continue;
+        byValue[t.value] = byValue[t.value] || [];
+        byValue[t.value].push(t);
+      }
+      for (const val in byValue) {
+        const list = byValue[val];
+        const uniqueColors = [];
+        const seen = new Set();
+        for (const t of list) {
+          if (!seen.has(t.color)) {
+            uniqueColors.push(t);
+            seen.add(t.color);
+          }
+        }
+        if (uniqueColors.length >= 3) {
+          detectedPers.push([...uniqueColors]);
+          uniqueColors.forEach(item => usedIds.add(item.id));
         }
       }
-      if (uniqueColors.length >= 3) {
-        detectedPers.push([...uniqueColors]);
-        uniqueColors.forEach(item => usedIds.add(item.id));
-      }
-    }
 
-    // 4. Wildcard runs or groups: check if any wildcard can form a 3-tile per with unused tiles
-    let wildIdx = 0;
-    while (wildIdx < wildcards.length) {
-      const wild = wildcards[wildIdx];
-      if (usedIds.has(wild.id)) {
+      // 4. Wildcard runs or groups: check if any wildcard can form a 3-tile per with unused tiles
+      let wildIdx = 0;
+      while (wildIdx < wildcards.length) {
+        const wild = wildcards[wildIdx];
+        if (usedIds.has(wild.id)) {
+          wildIdx++;
+          continue;
+        }
+
+        let formed = false;
+        const unusedNormals = normals.filter(t => !usedIds.has(t.id));
+        for (let i = 0; i < unusedNormals.length && !formed; i++) {
+          for (let j = i + 1; j < unusedNormals.length && !formed; j++) {
+            const a = unusedNormals[i];
+            const b = unusedNormals[j];
+            const candidate = [a, b, wild];
+            const ordered = this.getValidRunOrder(candidate, okeyInfo, gameType);
+            if (ordered) {
+              detectedPers.push(ordered);
+              ordered.forEach(t => usedIds.add(t.id));
+              formed = true;
+              break;
+            }
+            if (this.isValidGroup(candidate, okeyInfo)) {
+              detectedPers.push(candidate);
+              candidate.forEach(t => usedIds.add(t.id));
+              formed = true;
+              break;
+            }
+          }
+        }
         wildIdx++;
-        continue;
       }
-
-      let formed = false;
-      const unusedNormals = normals.filter(t => !usedIds.has(t.id));
-      for (let i = 0; i < unusedNormals.length && !formed; i++) {
-        for (let j = i + 1; j < unusedNormals.length && !formed; j++) {
-          const a = unusedNormals[i];
-          const b = unusedNormals[j];
-          const candidate = [a, b, wild];
-          const ordered = this.getValidRunOrder(candidate, okeyInfo, gameType);
-          if (ordered) {
-            detectedPers.push(ordered);
-            ordered.forEach(t => usedIds.add(t.id));
-            formed = true;
-            break;
-          }
-          if (this.isValidGroup(candidate, okeyInfo)) {
-            detectedPers.push(candidate);
-            candidate.forEach(t => usedIds.add(t.id));
-            formed = true;
-            break;
-          }
-        }
-      }
-      wildIdx++;
     }
 
-    // 5. Sort pers: runs first (by color, start value), groups second (by value)
+    // 5. Clean internal sorting for each per
     const colorRank = { red: 0, yellow: 1, blue: 2, black: 3 };
+    for (const per of detectedPers) {
+      if (this.isValidGroup(per, okeyInfo)) {
+        per.sort((a, b) => (colorRank[a.color] ?? 99) - (colorRank[b.color] ?? 99));
+      } else {
+        const ordered = this.getValidRunOrder(per, okeyInfo, gameType);
+        if (ordered) {
+          for (let i = 0; i < ordered.length; i++) per[i] = ordered[i];
+        }
+      }
+    }
+
+    // 6. Sort pers on the rack: runs first (by color, start value), groups second (by value descending)
     detectedPers.sort((a, b) => {
       const aIsRun = a.length > 0 && a[0].color === a[a.length - 1].color;
       const bIsRun = b.length > 0 && b[0].color === b[b.length - 1].color;
@@ -604,7 +679,7 @@ export class RuleValidator {
         if (rankA !== rankB) return rankA - rankB;
         return a[0].value - b[0].value;
       }
-      return a[0].value - b[0].value;
+      return b[0].value - a[0].value; // higher value groups first
     });
 
     // 6. Build row1 (15 slots) and row2 (15 slots) with 1 gap between pers
