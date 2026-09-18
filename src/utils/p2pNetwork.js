@@ -45,7 +45,7 @@ class P2PNetwork {
   }
 
   // HOST: Create Room
-  async createRoom({ name, gameType, options, playerName }) {
+  async createRoom({ name, gameType, options, playerName, playerAvatar }) {
     this.isHost = true;
     this.playerName = playerName;
 
@@ -60,7 +60,7 @@ class P2PNetwork {
       name,
       gameType,
       options,
-      { id: this.myId, name: playerName }
+      { id: this.myId, name: playerName, avatar: playerAvatar || 'crown' }
     );
 
     // Initial broadcast to local UI
@@ -69,7 +69,7 @@ class P2PNetwork {
   }
 
   // GUEST: Join Room
-  async joinRoom({ roomId, playerName }) {
+  async joinRoom({ roomId, playerName, playerAvatar }) {
     this.isHost = false;
     this.playerName = playerName;
     this.roomId = roomId;
@@ -86,7 +86,8 @@ class P2PNetwork {
         conn.send({
           type: 'lobby:join',
           senderId: this.myId,
-          playerName
+          playerName,
+          avatar: playerAvatar || 'star'
         });
       });
 
@@ -129,7 +130,7 @@ class P2PNetwork {
 
     switch (data.type) {
       case 'lobby:join': {
-        const joinRes = this.localRoom.join(conn.peer, data.playerName);
+        const joinRes = this.localRoom.join(conn.peer, data.playerName, -1, data.avatar);
         conn.send({
           type: 'lobby:join_response',
           success: joinRes.success,

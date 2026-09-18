@@ -68,4 +68,17 @@ authService.updateAvatar('fire');
 let userAfterAvatar = authService.getCurrentUser();
 assert.strictEqual(userAfterAvatar.avatar, 'fire', 'Should update avatar to fire');
 
+// 9. Custom Image Avatar (Base64 PNG/JPEG Data URL)
+const customPngData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+authService.updateAvatar(customPngData);
+let userAfterCustomAvatar = authService.getCurrentUser();
+assert.strictEqual(userAfterCustomAvatar.avatar, customPngData, 'Should store custom PNG data URL');
+
+// 10. Register directly with custom JPEG Data URL
+const customJpegData = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+const customReg = authService.register('AvatarPro', 'secure123', customJpegData);
+assert.strictEqual(customReg.success, true);
+assert.strictEqual(customReg.user.avatar, customJpegData);
+
 console.log('✓ All AuthService tests passed successfully!');
+

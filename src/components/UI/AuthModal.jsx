@@ -1,16 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { authService, AVAILABLE_AVATARS } from '../../utils/authService.js';
-import { LogIn, UserPlus, X, Lock, User, Sparkles, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { processAvatarImage } from '../../utils/mediaUtils.js';
+import { LogIn, UserPlus, X, Lock, User, Sparkles, CheckCircle2, ShieldAlert, Camera, Upload } from 'lucide-react';
 
 export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(AVAILABLE_AVATARS[0].id);
+  const [customAvatar, setCustomAvatar] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
 
   if (!isOpen) return null;
+
+  const handleCustomImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError('');
+    setUploadingAvatar(true);
+    try {
+      const dataUrl = await processAvatarImage(file, 120);
+      setCustomAvatar(dataUrl);
+      setSelectedAvatar(dataUrl);
+    } catch (err) {
+      setError(err.message || 'Resim yüklenirken bir hata oluştu.');
+    } finally {
+      setUploadingAvatar(false);
+      if (e.target) e.target.value = '';
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -59,7 +80,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
           <p>
             {activeTab === 'login'
               ? 'Kullanıcı adı ve şifrenizle giriş yaparak skorlarınızı koruyun.'
-              : 'Profil oluşturun, avatarınızı seçin ve galibiyetlerinizi kaydedin!'}
+              : 'Profil oluşturun, avatarınızı seçin veya kendi fotoğrafınızı yükleyin!'}
           </p>
         </div>
 
@@ -131,8 +152,49 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
           {/* Avatar Selector (Only for Register) */}
           {activeTab === 'register' && (
             <div className="auth-field">
-              <label>Profil Avatarınızı Seçin</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ margin: 0 }}>Profil Avatarınızı Seçin</label>
+                <button
+                  type="button"
+                  className="avatar-upload-trigger-link"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="PNG veya JPEG resim yükleyin"
+                  disabled={uploadingAvatar}
+                >
+                  <Camera size={13} style={{ marginRight: 4 }} />
+                  {uploadingAvatar ? 'Yükleniyor...' : (customAvatar ? 'Resmi Değiştir' : 'Fotoğraf Yükle')}
+                </button>
+              </div>
+
+              {/* Hidden file input for PNG/JPEG */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                style={{ display: 'none' }}
+                onChange={handleCustomImageUpload}
+              />
+
               <div className="avatar-selection-grid">
+                {/* Uploaded Custom Avatar Option */}
+                {customAvatar && (
+                  <button
+                    type="button"
+                    className={`avatar-choice-btn custom-avatar-choice ${selectedAvatar === customAvatar ? 'selected' : ''}`}
+                    onClick={() => setSelectedAvatar(customAvatar)}
+                    title="Kendi Yüklediğiniz Fotoğraf"
+                  >
+                    <div className="avatar-custom-thumb-wrap">
+                      <img src={customAvatar} alt="Özel Avatar" className="avatar-preview-img" />
+                    </div>
+                    <span className="avatar-choice-label">Fotoğrafım</span>
+                    {selectedAvatar === customAvatar && (
+                      <CheckCircle2 size={12} color="#38ef7d" className="avatar-check-icon" />
+                    )}
+                  </button>
+                )}
+
+                {/* Standard Preset Avatars */}
                 {AVAILABLE_AVATARS.map((av) => (
                   <button
                     key={av.id}
@@ -148,6 +210,22 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
                     )}
                   </button>
                 ))}
+
+                {/* Upload Action Button inside Grid (if not uploaded yet) */}
+                {!customAvatar && (
+                  <button
+                    type="button"
+                    className="avatar-choice-btn upload-placeholder-choice"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Kendi PNG veya JPEG resminizi yükleyin"
+                    disabled={uploadingAvatar}
+                  >
+                    <div className="upload-choice-icon-wrap">
+                      <Upload size={18} color="#e5b94c" />
+                    </div>
+                    <span className="avatar-choice-label">PNG / JPEG</span>
+                  </button>
+                )}
               </div>
             </div>
           )}

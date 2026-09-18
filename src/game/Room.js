@@ -22,6 +22,7 @@ export class Room {
     this.seats[0] = {
       id: host.id,
       name: host.name || 'Ev Sahibi',
+      avatar: host.avatar || 'crown',
       isBot: false,
       isReady: true,
       isHost: true
@@ -30,9 +31,12 @@ export class Room {
     this.addSystemMessage(`${this.seats[0].name} masayı oluşturdu.`);
   }
 
-  join(socketId, playerName, preferredSeat = -1) {
+  join(socketId, playerName, preferredSeat = -1, avatar = 'star') {
     const existingIdx = this.seats.findIndex(s => s && s.id === socketId);
     if (existingIdx !== -1) {
+      if (avatar && this.seats[existingIdx]) {
+        this.seats[existingIdx].avatar = avatar;
+      }
       return { success: true, seatIndex: existingIdx };
     }
 
@@ -48,6 +52,7 @@ export class Room {
     this.seats[seatIdx] = {
       id: socketId,
       name: playerName || `Oyuncu ${seatIdx + 1}`,
+      avatar: avatar || 'star',
       isBot: false,
       isReady: false,
       isHost: false
@@ -102,6 +107,7 @@ export class Room {
     this.seats[seatIdx] = {
       id: `bot-${Date.now()}-${seatIdx}`,
       name,
+      avatar: 'bot',
       isBot: true,
       isReady: true,
       isHost: false
@@ -145,6 +151,7 @@ export class Room {
     this.game.players = this.seats.map((s, idx) => ({
       id: s.id,
       name: s.name,
+      avatar: s.avatar || (s.isBot ? 'bot' : 'star'),
       isBot: s.isBot,
       seat: idx,
       hand: [],

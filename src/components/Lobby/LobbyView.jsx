@@ -42,7 +42,8 @@ export const LobbyView = ({ onRoomJoined, playerName, setPlayerName }) => {
         name: createName,
         gameType,
         options: { folded },
-        playerName: playerName.trim()
+        playerName: playerName.trim(),
+        playerAvatar: currentUser?.avatar || 'crown'
       });
 
       setLoading(false);
@@ -76,7 +77,8 @@ export const LobbyView = ({ onRoomJoined, playerName, setPlayerName }) => {
     try {
       const res = await network.joinRoom({
         roomId: targetCode,
-        playerName: playerName.trim()
+        playerName: playerName.trim(),
+        playerAvatar: currentUser?.avatar || 'star'
       });
 
       setLoading(false);

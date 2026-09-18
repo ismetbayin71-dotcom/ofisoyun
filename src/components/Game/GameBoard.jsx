@@ -7,6 +7,7 @@ import { TileRack } from './TileRack.jsx';
 import { ScoreModal } from '../UI/ScoreModal.jsx';
 import { ChatDrawer } from '../UI/ChatDrawer.jsx';
 import { YouTubeTvWidget } from './YouTubeTvWidget.jsx';
+import { PlayerAvatar } from '../UI/PlayerAvatar.jsx';
 import { Volume2, VolumeX, LogOut, HelpCircle, Bot, Sparkles, Layers } from 'lucide-react';
 
 const isEmojiOnly = (text) => {
@@ -532,9 +533,14 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         <div className="opponent-top">
           {topOpponent.player && (
             <div className={`opponent-tag ${turnIndex === topOpponent.seatIndex ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
-              <div className="seat-avatar" style={{ width: 36, height: 36, fontSize: '1rem', margin: 0 }}>
-                {topOpponent.player.isBot ? <Bot size={18} /> : topOpponent.player.name.charAt(0)}
-              </div>
+              <PlayerAvatar
+                avatar={topOpponent.player.avatar}
+                isBot={topOpponent.player.isBot}
+                name={topOpponent.player.name}
+                size={36}
+                className="seat-avatar"
+                style={{ margin: 0 }}
+              />
               <div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <strong style={{ fontSize: '0.95rem' }}>{topOpponent.player.name}</strong>
@@ -583,9 +589,14 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         <div className="opponent-left">
           {leftOpponent.player && (
             <div className={`opponent-tag ${turnIndex === leftOpponent.seatIndex ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
-              <div className="seat-avatar" style={{ width: 36, height: 36, fontSize: '1rem', margin: 0 }}>
-                {leftOpponent.player.isBot ? <Bot size={18} /> : leftOpponent.player.name.charAt(0)}
-              </div>
+              <PlayerAvatar
+                avatar={leftOpponent.player.avatar}
+                isBot={leftOpponent.player.isBot}
+                name={leftOpponent.player.name}
+                size={36}
+                className="seat-avatar"
+                style={{ margin: 0 }}
+              />
               <div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <strong style={{ fontSize: '0.95rem' }}>{leftOpponent.player.name}</strong>
@@ -660,9 +671,14 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                   >
                     <div className="quadrant-header">
                       <div className="quadrant-player-info" style={{ position: 'relative' }}>
-                        <div className="seat-avatar" style={{ width: 26, height: 26, fontSize: '0.8rem', margin: 0 }}>
-                          {quad.player?.isBot ? <Bot size={14} /> : (quad.player?.name?.charAt(0) || '?')}
-                        </div>
+                        <PlayerAvatar
+                          avatar={quad.player?.avatar}
+                          isBot={quad.player?.isBot}
+                          name={quad.player?.name}
+                          size={26}
+                          className="seat-avatar"
+                          style={{ margin: 0 }}
+                        />
                         <strong className="quadrant-name">
                           {quad.player?.name || 'Oyuncu'}
                           {quad.isViewer ? ' (Siz)' : ''}
@@ -761,9 +777,14 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         <div className="opponent-right">
           {rightOpponent.player && (
             <div className={`opponent-tag ${turnIndex === rightOpponent.seatIndex ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
-              <div className="seat-avatar" style={{ width: 36, height: 36, fontSize: '1rem', margin: 0 }}>
-                {rightOpponent.player.isBot ? <Bot size={18} /> : rightOpponent.player.name.charAt(0)}
-              </div>
+              <PlayerAvatar
+                avatar={rightOpponent.player.avatar}
+                isBot={rightOpponent.player.isBot}
+                name={rightOpponent.player.name}
+                size={36}
+                className="seat-avatar"
+                style={{ margin: 0 }}
+              />
               <div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <strong style={{ fontSize: '0.95rem' }}>{rightOpponent.player.name}</strong>
@@ -801,9 +822,14 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         <div className="opponent-bottom">
           {viewer && (
             <div className={`opponent-tag viewer-tag ${isMyTurn ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
-              <div className="seat-avatar" style={{ width: 36, height: 36, fontSize: '1rem', margin: 0 }}>
-                {viewer.name.charAt(0)}
-              </div>
+              <PlayerAvatar
+                avatar={viewer.avatar}
+                isBot={false}
+                name={viewer.name}
+                size={36}
+                className="seat-avatar"
+                style={{ margin: 0 }}
+              />
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <strong style={{ fontSize: '0.95rem' }}>{viewer.name} (Siz)</strong>

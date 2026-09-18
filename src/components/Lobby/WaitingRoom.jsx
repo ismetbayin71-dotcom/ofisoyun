@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { network } from '../../utils/network.js';
 import { Copy, Check, Bot, Play, UserPlus, LogOut, Shield } from 'lucide-react';
 import { ChatDrawer } from '../UI/ChatDrawer.jsx';
+import { PlayerAvatar } from '../UI/PlayerAvatar.jsx';
 
 export const WaitingRoom = ({ roomState, currentSocketId, onLeave }) => {
   const [copied, setCopied] = useState(false);
@@ -76,9 +77,13 @@ export const WaitingRoom = ({ roomState, currentSocketId, onLeave }) => {
               <div key={idx} className={`seat-card ${seat ? 'occupied' : ''}`}>
                 {seat ? (
                   <>
-                    <div className={`seat-avatar ${seat.isBot ? 'bot' : ''}`}>
-                      {seat.isBot ? <Bot size={28} /> : seat.name.charAt(0).toUpperCase()}
-                    </div>
+                    <PlayerAvatar
+                      avatar={seat.avatar}
+                      isBot={seat.isBot}
+                      name={seat.name}
+                      size={64}
+                      className={`seat-avatar ${seat.isBot ? 'bot' : ''}`}
+                    />
                     <div className="seat-name">
                       {seat.name}
                       {seat.isHost && <Shield size={13} color="#e5b94c" style={{ marginLeft: 4, display: 'inline' }} />}

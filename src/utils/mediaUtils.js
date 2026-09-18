@@ -22,3 +22,43 @@ export function extractYouTubeVideoId(url) {
   const match = trimmed.match(regExp);
   return match ? match[1] : null;
 }
+
+/**
+ * Resizes, crops to square, and converts user-uploaded PNG/JPEG images into optimized Base64 Data URLs.
+ */
+export function processAvatarImage(file, maxSize = 120) {
+  return new Promise((resolve, reject) => {
+    if (!file) return reject(new Error('Dosya seçilmedi.'));
+    if (!file.type.match(/^image\/(png|jpeg|jpg|webp)$/)) {
+      return reject(new Error('Yalnızca PNG veya JPEG formatları desteklenmektedir.'));
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const width = img.width;
+        const height = img.height;
+
+        // Crop to centered square
+        const minDim = Math.min(width, height);
+        const startX = (width - minDim) / 2;
+        const startY = (height - minDim) / 2;
+
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, maxSize, maxSize);
+
+        const format = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        const dataUrl = canvas.toDataURL(format, 0.85);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('Resim dosyası açılamadı.'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Dosya okunamadı.'));
+    reader.readAsDataURL(file);
+  });
+}
