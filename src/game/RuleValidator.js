@@ -9,7 +9,7 @@ export class RuleValidator {
     return tile.value || 0;
   }
 
-  static isValidRun(tiles, okeyInfo) {
+  static isValidRun(tiles, okeyInfo, gameType = 'classic') {
     if (!tiles || tiles.length < 3 || tiles.length > 14) return false;
 
     const nonWild = tiles.filter(t => !this.isWildOkey(t, okeyInfo));
@@ -20,7 +20,7 @@ export class RuleValidator {
       if (t.color !== baseColor) return false;
     }
 
-    // Standard run check without wrap
+    // Standard run check without wrap (e.g. 1-2-3 ... 11-12-13)
     for (let startVal = 1; startVal <= 14 - tiles.length; startVal++) {
       let match = true;
       for (let i = 0; i < tiles.length; i++) {
@@ -33,23 +33,25 @@ export class RuleValidator {
       if (match) return true;
     }
 
-    // Wrap check: Last tile is 1, preceding tiles end at 13
-    const lastTile = tiles[tiles.length - 1];
-    const isLastOne = this.isWildOkey(lastTile, okeyInfo) || lastTile.value === 1;
+    // Wrap check: Last tile is 1, preceding tiles end at 13 (Allowed in Classic/Düz Okey, NOT in 101)
+    if (gameType !== '101') {
+      const lastTile = tiles[tiles.length - 1];
+      const isLastOne = this.isWildOkey(lastTile, okeyInfo) || lastTile.value === 1;
 
-    if (isLastOne) {
-      const prefixLength = tiles.length - 1;
-      const startVal = 13 - prefixLength + 1;
-      if (startVal >= 1) {
-        let match = true;
-        for (let i = 0; i < prefixLength; i++) {
-          const t = tiles[i];
-          if (!this.isWildOkey(t, okeyInfo) && t.value !== startVal + i) {
-            match = false;
-            break;
+      if (isLastOne) {
+        const prefixLength = tiles.length - 1;
+        const startVal = 13 - prefixLength + 1;
+        if (startVal >= 1) {
+          let match = true;
+          for (let i = 0; i < prefixLength; i++) {
+            const t = tiles[i];
+            if (!this.isWildOkey(t, okeyInfo) && t.value !== startVal + i) {
+              match = false;
+              break;
+            }
           }
+          if (match) return true;
         }
-        if (match) return true;
       }
     }
 
@@ -74,8 +76,8 @@ export class RuleValidator {
     return true;
   }
 
-  static isValidPer(tiles, okeyInfo) {
-    return this.isValidRun(tiles, okeyInfo) || this.isValidGroup(tiles, okeyInfo);
+  static isValidPer(tiles, okeyInfo, gameType = 'classic') {
+    return this.isValidRun(tiles, okeyInfo, gameType) || this.isValidGroup(tiles, okeyInfo);
   }
 
   static isPair(tileA, tileB, okeyInfo) {
@@ -84,8 +86,8 @@ export class RuleValidator {
     return tileA.color === tileB.color && tileA.value === tileB.value;
   }
 
-  static getPerPoints(tiles, okeyInfo) {
-    if (!this.isValidPer(tiles, okeyInfo)) return 0;
+  static getPerPoints(tiles, okeyInfo, gameType = '101') {
+    if (!this.isValidPer(tiles, okeyInfo, gameType)) return 0;
 
     let total = 0;
     if (this.isValidGroup(tiles, okeyInfo)) {
@@ -117,10 +119,10 @@ export class RuleValidator {
 
     let totalPoints = 0;
     for (const per of pers) {
-      if (!this.isValidPer(per, okeyInfo)) {
-        return { valid: false, reason: 'Geçersiz per var.' };
+      if (!this.isValidPer(per, okeyInfo, '101')) {
+        return { valid: false, reason: 'Geçersiz per var. (101 Okeyde 12-13-1 serisi geçerli değildir, seriler en fazla 11-12-13 olabilir)' };
       }
-      totalPoints += this.getPerPoints(per, okeyInfo);
+      totalPoints += this.getPerPoints(per, okeyInfo, '101');
     }
 
     if (totalPoints < minPoints) {
@@ -138,7 +140,7 @@ export class RuleValidator {
    * Intelligently determines if a set of tiles can form a valid run (including wildcards and wrap),
    * and returns the tiles in their canonical sequence order, or null if invalid.
    */
-  static getValidRunOrder(tiles, okeyInfo) {
+  static getValidRunOrder(tiles, okeyInfo, gameType = 'classic') {
     if (!tiles || tiles.length < 3 || tiles.length > 13) return null;
 
     const wildcards = tiles.filter(t => this.isWildOkey(t, okeyInfo));
@@ -161,14 +163,16 @@ export class RuleValidator {
     const L = tiles.length;
     const candidatePatterns = [];
 
-    // 1. Wrap run ending with 1: e.g. [11, 12, 13, 1] or [12, 13, 1]
-    const wrapPattern = [];
-    for (let k = 0; k < L - 1; k++) {
-      wrapPattern.push(13 - (L - 2) + k);
-    }
-    wrapPattern.push(1);
-    if (wrapPattern[0] >= 1) {
-      candidatePatterns.push(wrapPattern);
+    // 1. Wrap run ending with 1: e.g. [11, 12, 13, 1] or [12, 13, 1] - Allowed ONLY in classic/düz okey, NOT in 101!
+    if (gameType !== '101') {
+      const wrapPattern = [];
+      for (let k = 0; k < L - 1; k++) {
+        wrapPattern.push(13 - (L - 2) + k);
+      }
+      wrapPattern.push(1);
+      if (wrapPattern[0] >= 1) {
+        candidatePatterns.push(wrapPattern);
+      }
     }
 
     // 2. Standard consecutive runs: e.g. [1, 2, 3] to [11, 12, 13]
@@ -207,7 +211,7 @@ export class RuleValidator {
           }
         }
 
-        if (possible && this.isValidRun(result, okeyInfo)) {
+        if (possible && this.isValidRun(result, okeyInfo, gameType)) {
           return result;
         }
       }
@@ -232,14 +236,15 @@ export class RuleValidator {
         if (this.isValidGroup(current, okeyInfo)) {
           candidatePers.push({
             tiles: [...current],
-            pts: this.getPerPoints(current, okeyInfo)
+            pts: this.getPerPoints(current, okeyInfo, '101')
           });
         } else {
-          const orderedRun = this.getValidRunOrder(current, okeyInfo);
+          // 101 Okey does NOT allow 12-13-1 wrap runs
+          const orderedRun = this.getValidRunOrder(current, okeyInfo, '101');
           if (orderedRun) {
             candidatePers.push({
               tiles: orderedRun,
-              pts: this.getPerPoints(orderedRun, okeyInfo)
+              pts: this.getPerPoints(orderedRun, okeyInfo, '101')
             });
           }
         }
@@ -436,11 +441,11 @@ export class RuleValidator {
     return backtrack(new Set(), 0);
   }
 
-  static isValidRunPermutation(tiles, okeyInfo) {
-    return this.getValidRunOrder(tiles, okeyInfo) !== null;
+  static isValidRunPermutation(tiles, okeyInfo, gameType = 'classic') {
+    return this.getValidRunOrder(tiles, okeyInfo, gameType) !== null;
   }
 
-  static canProcessTile(tile, openPer, okeyInfo) {
+  static canProcessTile(tile, openPer, okeyInfo, gameType = '101') {
     if (!tile || !openPer || openPer.length === 0) return null;
 
     if (this.isValidGroup(openPer, okeyInfo)) {
@@ -451,13 +456,13 @@ export class RuleValidator {
       }
     }
 
-    if (this.isValidRun(openPer, okeyInfo)) {
+    if (this.isValidRun(openPer, okeyInfo, gameType)) {
       const prepend = [tile, ...openPer];
-      if (this.isValidRun(prepend, okeyInfo)) {
+      if (this.isValidRun(prepend, okeyInfo, gameType)) {
         return { type: 'run-prepend', newPer: prepend };
       }
       const append = [...openPer, tile];
-      if (this.isValidRun(append, okeyInfo)) {
+      if (this.isValidRun(append, okeyInfo, gameType)) {
         return { type: 'run-append', newPer: append };
       }
     }
@@ -466,14 +471,10 @@ export class RuleValidator {
   }
 
   /**
-   * Smartly organizes hand into detected runs/groups with gaps
-   * Returns an array of tiles organized into logical sequences
-   */
-  /**
    * Smartly organizes hand into detected runs/groups with gaps between pers,
    * keeping colors together and placing leftovers cleanly.
    */
-  static autoArrangeRuns(hand, okeyInfo) {
+  static autoArrangeRuns(hand, okeyInfo, gameType = 'classic') {
     if (!hand || hand.length === 0) return Array(30).fill(null);
 
     const usedIds = new Set();
@@ -517,17 +518,19 @@ export class RuleValidator {
       }
     }
 
-    // 2. Wrap runs: 11-12-13-1 or 12-13-1
-    for (const c in byColor) {
-      const tiles = byColor[c].filter(t => !usedIds.has(t.id));
-      const hasOne = tiles.find(t => t.value === 1);
-      const hasThirteen = tiles.find(t => t.value === 13);
-      const hasTwelve = tiles.find(t => t.value === 12);
-      if (hasOne && hasThirteen && hasTwelve) {
-        const hasEleven = tiles.find(t => t.value === 11);
-        const wrapPer = hasEleven ? [hasEleven, hasTwelve, hasThirteen, hasOne] : [hasTwelve, hasThirteen, hasOne];
-        detectedPers.push(wrapPer);
-        wrapPer.forEach(t => usedIds.add(t.id));
+    // 2. Wrap runs: 11-12-13-1 or 12-13-1 (Allowed ONLY in classic/düz okey, NOT in 101!)
+    if (gameType !== '101') {
+      for (const c in byColor) {
+        const tiles = byColor[c].filter(t => !usedIds.has(t.id));
+        const hasOne = tiles.find(t => t.value === 1);
+        const hasThirteen = tiles.find(t => t.value === 13);
+        const hasTwelve = tiles.find(t => t.value === 12);
+        if (hasOne && hasThirteen && hasTwelve) {
+          const hasEleven = tiles.find(t => t.value === 11);
+          const wrapPer = hasEleven ? [hasEleven, hasTwelve, hasThirteen, hasOne] : [hasTwelve, hasThirteen, hasOne];
+          detectedPers.push(wrapPer);
+          wrapPer.forEach(t => usedIds.add(t.id));
+        }
       }
     }
 
@@ -570,7 +573,7 @@ export class RuleValidator {
           const a = unusedNormals[i];
           const b = unusedNormals[j];
           const candidate = [a, b, wild];
-          const ordered = this.getValidRunOrder(candidate, okeyInfo);
+          const ordered = this.getValidRunOrder(candidate, okeyInfo, gameType);
           if (ordered) {
             detectedPers.push(ordered);
             ordered.forEach(t => usedIds.add(t.id));

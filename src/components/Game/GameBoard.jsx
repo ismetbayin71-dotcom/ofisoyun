@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { network } from '../../utils/network.js';
 import { sound } from '../../utils/soundEffects.js';
 import { RuleValidator } from '../../game/RuleValidator.js';
@@ -7,6 +7,13 @@ import { TileRack } from './TileRack.jsx';
 import { ScoreModal } from '../UI/ScoreModal.jsx';
 import { ChatDrawer } from '../UI/ChatDrawer.jsx';
 import { Volume2, VolumeX, LogOut, HelpCircle, Bot, Sparkles, Layers } from 'lucide-react';
+
+const isEmojiOnly = (text) => {
+  if (!text) return false;
+  const trimmed = text.trim();
+  const emojiRegex = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\s)+$/u;
+  return emojiRegex.test(trimmed) && trimmed.length <= 8;
+};
 
 export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLeaveRoom }) => {
   const [muted, setMuted] = useState(false);
@@ -297,6 +304,57 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
 
   const messagesList = gameState.chatMessages || chatMessages || [];
 
+  // Speech bubbles triggered by chat messages & emojis (5s duration)
+  const [activeBubbles, setActiveBubbles] = useState({});
+  const lastProcessedMsgIdRef = useRef(null);
+  const bubbleTimersRef = useRef({});
+
+  useEffect(() => {
+    if (!messagesList || messagesList.length === 0) return;
+    const latestMsg = messagesList[messagesList.length - 1];
+    if (!latestMsg || latestMsg.isSystem) return;
+
+    if (latestMsg.id !== lastProcessedMsgIdRef.current) {
+      lastProcessedMsgIdRef.current = latestMsg.id;
+      const sender = latestMsg.sender;
+
+      // Clear any prior timer for this sender
+      if (bubbleTimersRef.current[sender]) {
+        clearTimeout(bubbleTimersRef.current[sender]);
+      }
+
+      // Play soft pop sound
+      try {
+        sound.playTileClick();
+      } catch (e) {}
+
+      // Activate bubble for this player
+      setActiveBubbles(prev => ({
+        ...prev,
+        [sender]: { id: latestMsg.id, text: latestMsg.text }
+      }));
+
+      // Dismiss after 5 seconds
+      bubbleTimersRef.current[sender] = setTimeout(() => {
+        setActiveBubbles(prev => {
+          if (prev[sender]?.id === latestMsg.id) {
+            const next = { ...prev };
+            delete next[sender];
+            return next;
+          }
+          return prev;
+        });
+        delete bubbleTimersRef.current[sender];
+      }, 5000);
+    }
+  }, [messagesList]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(bubbleTimersRef.current).forEach(t => clearTimeout(t));
+    };
+  }, []);
+
   return (
     <div className="game-screen">
       {/* Top Header Bar */}
@@ -420,7 +478,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         {/* TOP OPPONENT */}
         <div className="opponent-top">
           {topOpponent.player && (
-            <div className={`opponent-tag ${turnIndex === topOpponent.seatIndex ? 'active-turn' : ''}`}>
+            <div className={`opponent-tag ${turnIndex === topOpponent.seatIndex ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
               <div className="seat-avatar" style={{ width: 36, height: 36, fontSize: '1rem', margin: 0 }}>
                 {topOpponent.player.isBot ? <Bot size={18} /> : topOpponent.player.name.charAt(0)}
               </div>
@@ -435,6 +493,18 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                   {topOpponent.player.tileCount} Taş • Skor: {scores[topOpponent.seatIndex] || 0}
                 </div>
               </div>
+
+              {activeBubbles[topOpponent.player.name] && (
+                <div
+                  className={`speech-bubble opponent-speech-bubble bubble-top ${
+                    isEmojiOnly(activeBubbles[topOpponent.player.name].text) ? 'emoji-bubble' : ''
+                  }`}
+                >
+                  <span className="speech-bubble-content">
+                    {activeBubbles[topOpponent.player.name].text}
+                  </span>
+                </div>
+              )}
             </div>
           )}
           <div className="discard-slot" style={{ marginTop: 6 }}>
@@ -447,7 +517,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         {/* LEFT OPPONENT */}
         <div className="opponent-left">
           {leftOpponent.player && (
-            <div className={`opponent-tag ${turnIndex === leftOpponent.seatIndex ? 'active-turn' : ''}`}>
+            <div className={`opponent-tag ${turnIndex === leftOpponent.seatIndex ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
               <div className="seat-avatar" style={{ width: 36, height: 36, fontSize: '1rem', margin: 0 }}>
                 {leftOpponent.player.isBot ? <Bot size={18} /> : leftOpponent.player.name.charAt(0)}
               </div>
@@ -462,6 +532,18 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                   {leftOpponent.player.tileCount} Taş • Skor: {scores[leftOpponent.seatIndex] || 0}
                 </div>
               </div>
+
+              {activeBubbles[leftOpponent.player.name] && (
+                <div
+                  className={`speech-bubble opponent-speech-bubble bubble-left ${
+                    isEmojiOnly(activeBubbles[leftOpponent.player.name].text) ? 'emoji-bubble' : ''
+                  }`}
+                >
+                  <span className="speech-bubble-content">
+                    {activeBubbles[leftOpponent.player.name].text}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -512,7 +594,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                     className={`table-player-quadrant ${quad.isActiveTurn ? 'is-current-turn' : ''}`}
                   >
                     <div className="quadrant-header">
-                      <div className="quadrant-player-info">
+                      <div className="quadrant-player-info" style={{ position: 'relative' }}>
                         <div className="seat-avatar" style={{ width: 26, height: 26, fontSize: '0.8rem', margin: 0 }}>
                           {quad.player?.isBot ? <Bot size={14} /> : (quad.player?.name?.charAt(0) || '?')}
                         </div>
@@ -520,6 +602,18 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                           {quad.player?.name || 'Oyuncu'}
                           {quad.isViewer ? ' (Siz)' : ''}
                         </strong>
+
+                        {activeBubbles[quad.player?.name] && (
+                          <div
+                            className={`speech-bubble quadrant-speech-bubble ${
+                              isEmojiOnly(activeBubbles[quad.player?.name].text) ? 'emoji-bubble' : ''
+                            }`}
+                          >
+                            <span className="speech-bubble-content">
+                              {activeBubbles[quad.player?.name].text}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {quad.openedInfo ? (
@@ -597,7 +691,7 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
         {/* RIGHT OPPONENT */}
         <div className="opponent-right">
           {rightOpponent.player && (
-            <div className={`opponent-tag ${turnIndex === rightOpponent.seatIndex ? 'active-turn' : ''}`}>
+            <div className={`opponent-tag ${turnIndex === rightOpponent.seatIndex ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
               <div className="seat-avatar" style={{ width: 36, height: 36, fontSize: '1rem', margin: 0 }}>
                 {rightOpponent.player.isBot ? <Bot size={18} /> : rightOpponent.player.name.charAt(0)}
               </div>
@@ -612,6 +706,18 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
                   {rightOpponent.player.tileCount} Taş • Skor: {scores[rightOpponent.seatIndex] || 0}
                 </div>
               </div>
+
+              {activeBubbles[rightOpponent.player.name] && (
+                <div
+                  className={`speech-bubble opponent-speech-bubble bubble-right ${
+                    isEmojiOnly(activeBubbles[rightOpponent.player.name].text) ? 'emoji-bubble' : ''
+                  }`}
+                >
+                  <span className="speech-bubble-content">
+                    {activeBubbles[rightOpponent.player.name].text}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -620,6 +726,40 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
               <Tile tile={getDiscardForSeat(rightOpponent.seatIndex)} okeyInfo={okeyInfo} />
             )}
           </div>
+        </div>
+
+        {/* VIEWER'S OWN PLAYER TAG (Bottom-Left) */}
+        <div className="opponent-bottom">
+          {viewer && (
+            <div className={`opponent-tag viewer-tag ${isMyTurn ? 'active-turn' : ''}`} style={{ position: 'relative' }}>
+              <div className="seat-avatar" style={{ width: 36, height: 36, fontSize: '1rem', margin: 0 }}>
+                {viewer.name.charAt(0)}
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <strong style={{ fontSize: '0.95rem' }}>{viewer.name} (Siz)</strong>
+                  {isMyTurn && (
+                    <span className="turn-tag-badge">SIRA SİZDE</span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                  {viewer.hand?.length || 0} Taş • Skor: {scores[viewerSeatIdx] || 0}
+                </div>
+              </div>
+
+              {activeBubbles[viewer.name] && (
+                <div
+                  className={`speech-bubble opponent-speech-bubble bubble-viewer ${
+                    isEmojiOnly(activeBubbles[viewer.name].text) ? 'emoji-bubble' : ''
+                  }`}
+                >
+                  <span className="speech-bubble-content">
+                    {activeBubbles[viewer.name].text}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* VIEWER'S OWN DISCARD PILE (Bottom-Right: The tile thrown by viewer) */}
@@ -659,11 +799,18 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
               <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Boş</span>
             )}
           </div>
-          {isMyTurn && hasDrawn && (
-            <span style={{ fontSize: '0.72rem', color: '#e5b94c', fontWeight: 700, marginTop: 2 }}>
-              Taş Atma Yeri
-            </span>
-          )}
+          <span
+            style={{
+              fontSize: '0.72rem',
+              color: '#e5b94c',
+              fontWeight: 700,
+              marginTop: 2,
+              minHeight: '16px',
+              visibility: (isMyTurn && hasDrawn) ? 'visible' : 'hidden'
+            }}
+          >
+            Taş Atma Yeri
+          </span>
         </div>
       </div>
 

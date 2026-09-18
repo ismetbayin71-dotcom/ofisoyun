@@ -50,4 +50,39 @@ console.log('Pairs Found:', pairResult.pairCount);
 console.assert(pairResult.pairCount === 5, `Expected 5 pairs, got ${pairResult.pairCount}`);
 console.log('✓ find101Pairs correctly detected all 5 pairs!');
 
+// Test: 12-13-1 is NOT valid in 101 Okey, but valid in Classic
+const wrapRun101 = [
+  new Tile('r12', 'red', 12),
+  new Tile('r13', 'red', 13),
+  new Tile('r1', 'red', 1)
+];
+console.assert(RuleValidator.isValidRun(wrapRun101, okeyInfo, '101') === false, '12-13-1 must NOT be valid in 101');
+console.assert(RuleValidator.isValidRun(wrapRun101, okeyInfo, 'classic') === true, '12-13-1 must be valid in classic');
+console.log('✓ 12-13-1 correctly disallowed in 101 and allowed in classic!');
+
+// Test: findBest101Pers ignores 12-13-1
+const wrapOnlyHand = [
+  new Tile('r12-wrap', 'red', 12),
+  new Tile('r13-wrap', 'red', 13),
+  new Tile('r1-wrap', 'red', 1)
+];
+const wrapScan = RuleValidator.findBest101Pers(wrapOnlyHand, okeyInfo);
+console.assert(wrapScan.pers.length === 0, '12-13-1 must not be formed as a per in 101');
+console.assert(wrapScan.totalPoints === 0, 'Points for 12-13-1 in 101 must be 0');
+console.log('✓ findBest101Pers correctly ignored 12-13-1!');
+
+// Test: autoArrangeRuns does not group 12-13-1 in 101 mode
+const arrangeHand = [
+  new Tile('k12', 'black', 12),
+  new Tile('k13', 'black', 13),
+  new Tile('k1', 'black', 1)
+];
+const arranged101 = RuleValidator.autoArrangeRuns(arrangeHand, okeyInfo, '101');
+// In 101 mode, 12, 13, 1 should not be placed contiguously as a per with gap
+// specifically first 3 slots won't be [12, 13, 1] followed by null if not formed
+const arrangedClassic = RuleValidator.autoArrangeRuns(arrangeHand, okeyInfo, 'classic');
+console.assert(arrangedClassic[0].value === 12 && arrangedClassic[1].value === 13 && arrangedClassic[2].value === 1, 'Classic autoArrange creates wrap per');
+console.assert(!(arranged101[0]?.value === 12 && arranged101[1]?.value === 13 && arranged101[2]?.value === 1 && arranged101[3] === null), '101 autoArrange does NOT create wrap per');
+console.log('✓ autoArrangeRuns correctly distinguishes 101 from classic!');
+
 console.log('🎉 ALL 101 VALIDATION TESTS PASSED!');

@@ -253,7 +253,7 @@ export const TileRack = ({
   // AUTO ARRANGE: RUNS (Seri Diz)
   const handleAutoArrangeRuns = () => {
     sound.playTileClick();
-    const arranged = RuleValidator.autoArrangeRuns(hand, okeyInfo);
+    const arranged = RuleValidator.autoArrangeRuns(hand, okeyInfo, gameType);
     setSlots(arranged);
     setSelectedSlotIndex(null);
     setSelectedFor101Ids([]);
@@ -457,10 +457,10 @@ export const TileRack = ({
         {gameType === '101' && (
           <div className="rack-actions-group">
             {/* Live Point Indicator in Bar */}
-            <div className="rack-live-stats-pill">
-              <span>Elde: <strong>{totalHandPoints} Puan</strong></span>
-              <span style={{ margin: '0 4px', opacity: 0.5 }}>|</span>
-              <span>Açılabilir: <strong style={{ color: bestPersPoints >= minRequiredPoints ? '#38ef7d' : '#f87171' }}>{bestPersPoints}/{minRequiredPoints}</strong></span>
+            <div className="rack-live-stats-pill" title="Açılabilir Seri Puanı / Gereken Baraj">
+              <span className="rack-live-score" style={{ color: bestPersPoints >= minRequiredPoints ? '#38ef7d' : '#f87171' }}>
+                {bestPersPoints}/{minRequiredPoints}
+              </span>
             </div>
 
             {/* Selected run opener button (if not pair) */}
@@ -590,14 +590,14 @@ export const TileRack = ({
           )}
 
           {isMyTurn && !hasDrawn && (
-            <span style={{ color: '#38ef7d', fontWeight: 800, fontSize: '0.9rem', animation: 'bannerPulse 1.2s infinite' }}>
-              👉 Ortadan veya Yandan Taş Çekiniz!
+            <span style={{ color: '#38ef7d', fontWeight: 800, fontSize: '0.85rem', animation: 'bannerPulse 1.2s infinite' }}>
+              👉 Taş Çekiniz!
             </span>
           )}
 
           {isMyTurn && hasDrawn && !selectedTileToDiscard && (
-            <span style={{ color: '#e5b94c', fontWeight: 700, fontSize: '0.85rem' }}>
-              Atacağınız taşa tıklayın veya masaya sürükleyin
+            <span style={{ color: '#e5b94c', fontWeight: 700, fontSize: '0.82rem' }}>
+              Taşa tıklayın veya sürükleyin
             </span>
           )}
         </div>

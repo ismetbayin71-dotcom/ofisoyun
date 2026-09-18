@@ -20,7 +20,7 @@ export class RuleValidator {
    * e.g., Red 4, 5, 6 or Blue 11, 12, 13, 1
    * Allows Okey as wildcard.
    */
-  static isValidRun(tiles, okeyInfo) {
+  static isValidRun(tiles, okeyInfo, gameType = 'classic') {
     if (!tiles || tiles.length < 3 || tiles.length > 14) return false;
 
     // Determine the base color (from non-wildcard tiles)
@@ -45,23 +45,25 @@ export class RuleValidator {
       if (match) return true;
     }
 
-    // Wrap check: Last tile is 1 (or wildcard), preceding tiles end at 13
-    const lastTile = tiles[tiles.length - 1];
-    const isLastOne = this.isWildOkey(lastTile, okeyInfo) || lastTile.value === 1;
+    // Wrap check: Last tile is 1 (or wildcard), preceding tiles end at 13 (Allowed ONLY in Classic/Düz Okey, NOT in 101)
+    if (gameType !== '101') {
+      const lastTile = tiles[tiles.length - 1];
+      const isLastOne = this.isWildOkey(lastTile, okeyInfo) || lastTile.value === 1;
 
-    if (isLastOne) {
-      const prefixLength = tiles.length - 1;
-      const startVal = 13 - prefixLength + 1; // e.g. for [11, 12, 13, 1], prefixLength is 3, startVal is 11
-      if (startVal >= 1) {
-        let match = true;
-        for (let i = 0; i < prefixLength; i++) {
-          const t = tiles[i];
-          if (!this.isWildOkey(t, okeyInfo) && t.value !== startVal + i) {
-            match = false;
-            break;
+      if (isLastOne) {
+        const prefixLength = tiles.length - 1;
+        const startVal = 13 - prefixLength + 1; // e.g. for [11, 12, 13, 1], prefixLength is 3, startVal is 11
+        if (startVal >= 1) {
+          let match = true;
+          for (let i = 0; i < prefixLength; i++) {
+            const t = tiles[i];
+            if (!this.isWildOkey(t, okeyInfo) && t.value !== startVal + i) {
+              match = false;
+              break;
+            }
           }
+          if (match) return true;
         }
-        if (match) return true;
       }
     }
 
@@ -93,8 +95,8 @@ export class RuleValidator {
   /**
    * Validates if a group of tiles is a valid Per (either Run or Group)
    */
-  static isValidPer(tiles, okeyInfo) {
-    return this.isValidRun(tiles, okeyInfo) || this.isValidGroup(tiles, okeyInfo);
+  static isValidPer(tiles, okeyInfo, gameType = 'classic') {
+    return this.isValidRun(tiles, okeyInfo, gameType) || this.isValidGroup(tiles, okeyInfo);
   }
 
   /**
@@ -109,8 +111,8 @@ export class RuleValidator {
   /**
    * Calculates total points of a single Per in 101 Okey
    */
-  static getPerPoints(tiles, okeyInfo) {
-    if (!this.isValidPer(tiles, okeyInfo)) return 0;
+  static getPerPoints(tiles, okeyInfo, gameType = '101') {
+    if (!this.isValidPer(tiles, okeyInfo, gameType)) return 0;
 
     // Resolve wildcards if needed
     let total = 0;
@@ -149,17 +151,17 @@ export class RuleValidator {
 
     let totalPoints = 0;
     for (const per of pers) {
-      if (!this.isValidPer(per, okeyInfo)) {
-        return { valid: false, reason: 'Geçersiz per var.' };
+      if (!this.isValidPer(per, okeyInfo, '101')) {
+        return { valid: false, reason: 'Geçersiz per var. (101 Okeyde 12-13-1 serisi geçerli değildir, seriler en fazla 11-12-13 olabilir)' };
       }
-      totalPoints += this.getPerPoints(per, okeyInfo);
+      totalPoints += this.getPerPoints(per, okeyInfo, '101');
     }
 
     if (totalPoints < minPoints) {
       return {
         valid: false,
         points: totalPoints,
-        reason: `Toplam puanınız (${totalPoints}) minimum barajı (${minPoints}) geçmiyor.`
+        reason: `Toplam puanınız (${totalPoints}) barajı (${minPoints}) geçmiyor.`
       };
     }
 
@@ -298,17 +300,19 @@ export class RuleValidator {
   /**
    * Checks if any permutation of given tiles forms a valid run
    */
-  static isValidRunPermutation(tiles, okeyInfo) {
+  static isValidRunPermutation(tiles, okeyInfo, gameType = 'classic') {
     if (tiles.length < 3) return false;
     // Sort tiles by value and check
     const sorted = [...tiles].sort((a, b) => a.value - b.value);
-    if (this.isValidRun(sorted, okeyInfo)) return true;
+    if (this.isValidRun(sorted, okeyInfo, gameType)) return true;
 
-    // Also check 1 at the end (e.g. 11, 12, 13, 1)
-    const hasOne = sorted.find(t => t.value === 1 && !this.isWildOkey(t, okeyInfo));
-    if (hasOne) {
-      const rest = sorted.filter(t => t !== hasOne);
-      if (this.isValidRun([...rest, hasOne], okeyInfo)) return true;
+    // Also check 1 at the end (e.g. 11, 12, 13, 1) - ONLY in Classic/Düz Okey, NOT in 101!
+    if (gameType !== '101') {
+      const hasOne = sorted.find(t => t.value === 1 && !this.isWildOkey(t, okeyInfo));
+      if (hasOne) {
+        const rest = sorted.filter(t => t !== hasOne);
+        if (this.isValidRun([...rest, hasOne], okeyInfo, gameType)) return true;
+      }
     }
 
     return false;
@@ -317,7 +321,7 @@ export class RuleValidator {
   /**
    * Checks if a tile can be processed (işleme) onto an existing open per
    */
-  static canProcessTile(tile, openPer, okeyInfo) {
+  static canProcessTile(tile, openPer, okeyInfo, gameType = '101') {
     if (!tile || !openPer || openPer.length === 0) return null;
 
     // Check if openPer is a group (same value, different colors)
@@ -330,15 +334,15 @@ export class RuleValidator {
     }
 
     // Check if openPer is a run (consecutive numbers, same color)
-    if (this.isValidRun(openPer, okeyInfo)) {
+    if (this.isValidRun(openPer, okeyInfo, gameType)) {
       // Can we prepend?
       const prepend = [tile, ...openPer];
-      if (this.isValidRun(prepend, okeyInfo)) {
+      if (this.isValidRun(prepend, okeyInfo, gameType)) {
         return { type: 'run-prepend', newPer: prepend };
       }
       // Can we append?
       const append = [...openPer, tile];
-      if (this.isValidRun(append, okeyInfo)) {
+      if (this.isValidRun(append, okeyInfo, gameType)) {
         return { type: 'run-append', newPer: append };
       }
     }
