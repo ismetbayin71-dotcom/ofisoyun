@@ -67,6 +67,7 @@ function broadcastGameState(room) {
     if (seat && !seat.isBot) {
       const clientState = room.game.getClientState(seat.id);
       clientState.chatMessages = [...(room.chatMessages || [])];
+      clientState.mediaState = room.getMediaState();
       io.to(seat.id).emit('game:state', clientState);
     }
   }
@@ -280,6 +281,39 @@ io.on('connection', (socket) => {
     } else {
       broadcastLobbyState(room);
     }
+  });
+
+  // Media Controls (YouTube Player Synchronization)
+  socket.on('media:add', ({ roomId, track }) => {
+    const room = roomManager.getRoom(roomId);
+    if (!room || !track) return;
+    room.addMediaTrack(track);
+    if (room.game) broadcastGameState(room);
+    else broadcastLobbyState(room);
+  });
+
+  socket.on('media:skip', ({ roomId }) => {
+    const room = roomManager.getRoom(roomId);
+    if (!room) return;
+    room.skipMediaTrack();
+    if (room.game) broadcastGameState(room);
+    else broadcastLobbyState(room);
+  });
+
+  socket.on('media:remove', ({ roomId, trackId }) => {
+    const room = roomManager.getRoom(roomId);
+    if (!room) return;
+    room.removeMediaTrack(trackId);
+    if (room.game) broadcastGameState(room);
+    else broadcastLobbyState(room);
+  });
+
+  socket.on('media:togglePlay', ({ roomId, isPlaying }) => {
+    const room = roomManager.getRoom(roomId);
+    if (!room) return;
+    room.toggleMediaPlay(isPlaying);
+    if (room.game) broadcastGameState(room);
+    else broadcastLobbyState(room);
   });
 
   // Disconnect

@@ -6,6 +6,7 @@ import { Tile } from './Tile.jsx';
 import { TileRack } from './TileRack.jsx';
 import { ScoreModal } from '../UI/ScoreModal.jsx';
 import { ChatDrawer } from '../UI/ChatDrawer.jsx';
+import { YouTubeTvWidget } from './YouTubeTvWidget.jsx';
 import { Volume2, VolumeX, LogOut, HelpCircle, Bot, Sparkles, Layers } from 'lucide-react';
 
 const isEmojiOnly = (text) => {
@@ -305,6 +306,23 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
     });
   };
 
+  // Media Controls (YouTube Player Synchronization)
+  const handleAddMediaTrack = (track) => {
+    network.emit('media:add', { roomId: gameState.roomId, track });
+  };
+
+  const handleSkipMediaTrack = () => {
+    network.emit('media:skip', { roomId: gameState.roomId });
+  };
+
+  const handleRemoveMediaTrack = (trackId) => {
+    network.emit('media:remove', { roomId: gameState.roomId, trackId });
+  };
+
+  const handleToggleMediaPlay = (isPlaying) => {
+    network.emit('media:togglePlay', { roomId: gameState.roomId, isPlaying });
+  };
+
   const getDiscardForSeat = (seatIdx) => {
     return discardPiles[seatIdx]?.topTile || null;
   };
@@ -547,6 +565,18 @@ export const GameBoard = ({ gameState, currentSocketId, chatMessages = [], onLea
               <Tile tile={getDiscardForSeat(topOpponent.seatIndex)} okeyInfo={okeyInfo} mini />
             )}
           </div>
+        </div>
+
+        {/* TOP-RIGHT CORNER: SYNCHRONIZED YOUTUBE TV / MUSIC PLAYER */}
+        <div className="game-tv-slot">
+          <YouTubeTvWidget
+            mediaState={gameState.mediaState || { currentTrack: null, queue: [], isPlaying: true }}
+            onAddTrack={handleAddMediaTrack}
+            onSkipTrack={handleSkipMediaTrack}
+            onRemoveTrack={handleRemoveMediaTrack}
+            onTogglePlay={handleToggleMediaPlay}
+            playerName={viewer?.name || 'Oyuncu'}
+          />
         </div>
 
         {/* LEFT OPPONENT */}

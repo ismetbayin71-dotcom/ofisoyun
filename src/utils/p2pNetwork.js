@@ -222,6 +222,30 @@ class P2PNetwork {
         this.broadcastState();
         break;
       }
+
+      case 'media:add': {
+        this.localRoom.addMediaTrack(data.track);
+        this.broadcastState();
+        break;
+      }
+
+      case 'media:skip': {
+        this.localRoom.skipMediaTrack();
+        this.broadcastState();
+        break;
+      }
+
+      case 'media:remove': {
+        this.localRoom.removeMediaTrack(data.trackId);
+        this.broadcastState();
+        break;
+      }
+
+      case 'media:togglePlay': {
+        this.localRoom.toggleMediaPlay(data.isPlaying);
+        this.broadcastState();
+        break;
+      }
     }
   }
 
@@ -254,15 +278,19 @@ class P2PNetwork {
 
     // If game active, broadcast scrubbed game states
     if (this.localRoom.game) {
+      const mediaState = this.localRoom.getMediaState();
+
       // Local host state
       const hostGameState = this.localRoom.game.getClientState(this.myId);
       hostGameState.chatMessages = [...(this.localRoom.chatMessages || [])];
+      hostGameState.mediaState = mediaState;
       this.emitLocal('game:state', hostGameState);
 
       // Tailored client states to each peer
       for (const [peerId, conn] of this.connections.entries()) {
         const guestGameState = this.localRoom.game.getClientState(peerId);
         guestGameState.chatMessages = [...(this.localRoom.chatMessages || [])];
+        guestGameState.mediaState = mediaState;
         conn.send({ type: 'game:state', state: guestGameState });
       }
     }
@@ -336,6 +364,18 @@ class P2PNetwork {
       this.localRoom.checkBotTurn(() => this.broadcastState());
     } else if (event === 'chat:send') {
       this.localRoom.addChatMessage(data.senderName, data.text, false);
+      this.broadcastState();
+    } else if (event === 'media:add') {
+      this.localRoom.addMediaTrack(data.track);
+      this.broadcastState();
+    } else if (event === 'media:skip') {
+      this.localRoom.skipMediaTrack();
+      this.broadcastState();
+    } else if (event === 'media:remove') {
+      this.localRoom.removeMediaTrack(data.trackId);
+      this.broadcastState();
+    } else if (event === 'media:togglePlay') {
+      this.localRoom.toggleMediaPlay(data.isPlaying);
       this.broadcastState();
     }
   }

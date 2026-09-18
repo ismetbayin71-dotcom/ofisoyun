@@ -13,6 +13,11 @@ export class Room {
     this.chatMessages = [];
     this.game = null;
     this.status = 'lobby'; // 'lobby' | 'playing'
+    this.mediaState = {
+      currentTrack: null,
+      queue: [],
+      isPlaying: true
+    };
 
     // Add host to seat 0
     this.seats[0] = {
@@ -201,6 +206,49 @@ export class Room {
     return this.addChatMessage('Sistem', text, true);
   }
 
+  addMediaTrack(track) {
+    if (!this.mediaState.currentTrack) {
+      this.mediaState.currentTrack = track;
+      this.mediaState.isPlaying = true;
+    } else {
+      this.mediaState.queue.push(track);
+    }
+    return this.getMediaState();
+  }
+
+  skipMediaTrack() {
+    if (this.mediaState.queue.length > 0) {
+      this.mediaState.currentTrack = this.mediaState.queue.shift();
+      this.mediaState.isPlaying = true;
+    } else {
+      this.mediaState.currentTrack = null;
+      this.mediaState.isPlaying = false;
+    }
+    return this.getMediaState();
+  }
+
+  removeMediaTrack(trackId) {
+    this.mediaState.queue = this.mediaState.queue.filter(t => t.id !== trackId);
+    return this.getMediaState();
+  }
+
+  toggleMediaPlay(isPlaying) {
+    if (isPlaying !== undefined) {
+      this.mediaState.isPlaying = isPlaying;
+    } else {
+      this.mediaState.isPlaying = !this.mediaState.isPlaying;
+    }
+    return this.getMediaState();
+  }
+
+  getMediaState() {
+    return {
+      currentTrack: this.mediaState.currentTrack ? { ...this.mediaState.currentTrack } : null,
+      queue: [...this.mediaState.queue],
+      isPlaying: this.mediaState.isPlaying
+    };
+  }
+
   // Public lobby info
   getLobbyState() {
     return {
@@ -212,7 +260,8 @@ export class Room {
       seats: this.seats,
       status: this.status,
       playerCount: this.seats.filter(s => s !== null).length,
-      chatMessages: [...this.chatMessages]
+      chatMessages: [...this.chatMessages],
+      mediaState: this.getMediaState()
     };
   }
 }
